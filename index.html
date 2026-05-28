@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GREEKIFY ☀️ The Selfie Slot Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;900&family=EB+Garamond:ital,wght@0,500;1,500&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="meander" aria-hidden="true"></div>
+  <h1 class="logo">
+    <span class="g">G</span><span class="r">R</span><span class="e">E</span><span class="ee">E</span><span class="k">K</span><span class="i">I</span><span class="f">F</span><span class="y">Y</span>
+    <em class="sun">☀</em>
+  </h1>
+  <p class="tag">Πληρώνεις τίποτα · You spin · You become Greek · Παρακαλώ</p>
+  <div class="meander flip" aria-hidden="true"></div>
+</header>
+
+<main class="machine">
+
+  <!-- LEFT: input panel -->
+  <section class="panel input-panel">
+    <h2 class="panel-h">① Drop your face</h2>
+
+    <div id="dropzone" class="dropzone" tabindex="0">
+      <div class="dz-inner">
+        <svg viewBox="0 0 64 64" class="dz-icon" aria-hidden="true">
+          <circle cx="32" cy="24" r="10" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M12 54c2-10 12-16 20-16s18 6 20 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <p class="dz-headline">Drag a selfie here</p>
+        <p class="dz-or">— or —</p>
+        <div class="dz-buttons">
+          <label class="btn ghost">
+            Browse file
+            <input type="file" id="fileInput" accept="image/*" hidden />
+          </label>
+          <button class="btn ghost" id="webcamBtn" type="button">Use webcam 📷</button>
+        </div>
+      </div>
+      <video id="webcam" playsinline autoplay muted></video>
+      <button class="btn snap" id="snapBtn" type="button" hidden>SNAP 📸</button>
+    </div>
+
+    <p class="hint" id="hint">Your face never leaves your browser. We're not even a backend, we're a malakia.</p>
+  </section>
+
+  <!-- CENTER: the machine -->
+  <section class="panel slot-panel">
+    <div class="bezel">
+      <div class="bezel-screws">
+        <span></span><span></span><span></span><span></span>
+      </div>
+
+      <div class="reels" id="reels">
+        <div class="reel" data-reel="moustache">
+          <div class="reel-label">MOUSTACHE</div>
+          <div class="reel-window">
+            <ul class="reel-strip" data-strip>
+              <!-- filled by JS -->
+            </ul>
+          </div>
+        </div>
+        <div class="reel" data-reel="scene">
+          <div class="reel-label">SCENE</div>
+          <div class="reel-window">
+            <ul class="reel-strip" data-strip></ul>
+          </div>
+        </div>
+        <div class="reel" data-reel="prop">
+          <div class="reel-label">PROP</div>
+          <div class="reel-window">
+            <ul class="reel-strip" data-strip></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="payline" aria-hidden="true"></div>
+
+      <div class="readout" id="readout">
+        <span class="readout-label">YOUR FATE:</span>
+        <span class="readout-value" id="readoutValue">pull the damn lever</span>
+      </div>
+    </div>
+
+    <!-- LEVER -->
+    <button class="lever" id="lever" type="button" aria-label="Spin">
+      <span class="lever-rod"></span>
+      <span class="lever-ball"></span>
+      <span class="lever-text">PULL</span>
+    </button>
+  </section>
+
+  <!-- RIGHT: output -->
+  <section class="panel output-panel">
+    <h2 class="panel-h">② Behold</h2>
+
+    <div class="polaroid" id="polaroid">
+      <div class="polaroid-frame">
+        <canvas id="canvas" width="640" height="640"></canvas>
+        <div class="polaroid-overlay" id="polaroidOverlay">
+          <p>spin to see your<br/>Greek alter-ego</p>
+        </div>
+      </div>
+      <p class="polaroid-caption" id="caption">— untitled —</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="saveBtn" type="button" disabled>Save PNG 💾</button>
+      <button class="btn" id="spinAgainBtn" type="button" disabled>Spin again 🎰</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>Made in 5 minutes · No Greeks were harmed</span>
+  <span class="evil-eye" title="μάτι">🧿</span>
+  <span>v0.1 · σου εύχομαι καλό ταξίδι</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
