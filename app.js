@@ -1910,14 +1910,7 @@ saveBtn.addEventListener("click", () => {
     });
     if (state.img && state.pick.scene) drawComposite();
   }
-  document.querySelectorAll(".m-mood").forEach(chip => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".m-mood").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      applyMood(chip.dataset.mood);
-      buzz(12);
-    });
-  });
+  // (mood-chip binding moved below to .m-mood-big in the dedicated MOOD tab)
 
   // ---- TAB SWITCHING (MACHINE · STUDIO · OUTPUT) ----
   function setTab(name) {
@@ -1944,16 +1937,23 @@ saveBtn.addEventListener("click", () => {
     });
     mo.observe(readout, { childList: true, subtree: true });
   }
-  // when user touches a slider, switch to OUTPUT so they SEE the effect
-  document.addEventListener("input", (e) => {
-    if (e.target.matches && e.target.matches('input[type="range"][data-fx]')) {
-      // small delay so they can see chip changes
-      if (document.body.dataset.mtab !== "output") setTab("output");
-    }
+  // MOOD tap → flip to OUTPUT so the user sees the change instantly
+  document.querySelectorAll(".m-mood-big[data-mood]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const name = chip.dataset.mood;
+      applyMood(name);
+      document.querySelectorAll(".m-mood-big").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      buzz(12);
+      setTimeout(() => setTab("output"), 120);
+    });
   });
-  // mood chip click → switch to OUTPUT too
-  document.querySelectorAll(".m-mood").forEach(chip => {
-    chip.addEventListener("click", () => setTimeout(() => setTab("output"), 80));
+  // MOOD reset button (the 6th tile)
+  document.getElementById("mMoodReset")?.addEventListener("click", () => {
+    document.getElementById("fxReset")?.click();
+    document.querySelectorAll(".m-mood-big").forEach(c => c.classList.remove("active"));
+    buzz(15);
+    setTimeout(() => setTab("output"), 120);
   });
 
   // ---- haptic on lever

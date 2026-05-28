@@ -963,7 +963,7 @@ body.studio .hint { color: var(--st-text-dim); }
    ================================================================ */
 
 /* hide mobile-only UI by default (desktop hides these) */
-.m-actionbar, .m-tabs, .m-studio-tab { display: none; }
+.m-actionbar, .m-tabs, .m-mood-tab, .m-fx-tab { display: none; }
 
 @media (max-width: 900px) {
   /* ---- viewport math: no scrolling, everything in one screen ---- */
@@ -1065,7 +1065,8 @@ body.studio .hint { color: var(--st-text-dim); }
   body.studio[data-mtab="machine"] .input-panel,
   body.studio[data-mtab="machine"] .slot-panel { display: flex; }
   body.studio[data-mtab="output"]  .output-panel { display: flex; }
-  body.studio[data-mtab="studio"]  .m-studio-tab { display: flex; }
+  body.studio[data-mtab="mood"]    .m-mood-tab  { display: flex; }
+  body.studio[data-mtab="fx"]      .m-fx-tab    { display: flex; }
 
   /* MACHINE TAB — dropzone (top, compact) + bezel + lever in one screen */
   body.studio[data-mtab="machine"] main.machine {
@@ -1159,26 +1160,88 @@ body.studio .hint { color: var(--st-text-dim); }
   }
   body.studio[data-mtab="output"] .actions { display: none; }
 
-  /* STUDIO TAB — mood + faders */
-  .m-studio-tab {
+  /* ====== MOOD TAB — big chips grid filling the screen ====== */
+  .m-mood-tab {
     flex-direction: column;
-    gap: 10px;
-    padding: 12px;
-    overflow-y: auto;
+    padding: 10px;
     height: 100%;
-    background: var(--st-panel);
-    border-radius: 14px;
-    border: 1px solid var(--st-panel-border);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 18px rgba(13,94,175,0.06);
+    overflow: hidden;
   }
-  .m-studio-h {
+  .m-mood-grid {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 1fr;
+    gap: 10px;
+    min-height: 0;
+  }
+  .m-mood-big {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    background: var(--st-panel);
+    border: 1px solid var(--st-panel-border);
+    border-radius: 18px;
+    color: var(--st-text);
     font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: var(--st-text-dim);
-    margin: 4px 0 -2px;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 4px 14px rgba(13,94,175,0.07);
+    transition: all 0.16s ease;
+    padding: 8px;
+    min-height: 0;
+  }
+  .m-mood-big:active { transform: scale(0.97); }
+  .m-mood-big.active {
+    background: linear-gradient(180deg, var(--st-cyan), #086a9e);
+    color: #fff;
+    border-color: #086a9e;
+    box-shadow: 0 4px 16px rgba(13,142,209,0.35);
+  }
+  .m-mood-ic { font-size: clamp(28px, 7vh, 48px); line-height: 1; }
+  .m-mood-name {
+    font-size: 11px;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
   }
+  .m-mood-reset { background: rgba(255,255,255,0.6); }
+
+  /* ====== FX TAB — 9 faders fill the screen, no scroll ====== */
+  .m-fx-tab {
+    flex-direction: column;
+    padding: 8px 10px;
+    height: 100%;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .m-fx-tab .m-advanced-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  /* each slot stretches to fill its share of the tab height */
+  .m-fx-tab .fx-slot {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: 72px 1fr 44px;
+    gap: 8px;
+    align-items: center;
+    padding: 0 4px;
+    border-bottom: 1px solid var(--st-line);
+  }
+  .m-fx-tab .fx-slot:last-child { border-bottom: none; }
+  .m-fx-tab .fx-slot .fx-name { font-size: 10px; }
+  .m-fx-tab .fx-slot input[type="range"] { height: 32px; }
+  .m-fx-tab .fx-slot .fx-val { font-size: 11px; }
+  .m-fx-tab .m-advanced-foot {
+    flex: 0 0 auto;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid var(--st-line);
+  }
+  .m-fx-tab .mini-btn { min-height: 36px; font-size: 11px; }
 
   /* hide the masthead's footer/credits while in mobile mode */
   body.studio .foot { display: none; }
