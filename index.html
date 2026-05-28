@@ -47,7 +47,7 @@
   <div class="rail-head">
     <span class="led pulse"></span>
     <span class="mono">GREEKIFY · STUDIO</span>
-    <span class="rail-ver">v0.9</span>
+    <span class="rail-ver">v0.9.1</span>
   </div>
 
   <section class="rack-mod" data-stagger="0">
@@ -220,10 +220,17 @@
 <footer class="foot">
   <span>Made in 5 minutes · No Greeks were harmed</span>
   <span class="evil-eye" title="μάτι">🧿</span>
-  <span>v0.9 · σου εύχομαι καλό ταξίδι</span>
+  <span>v0.9.1 · σου εύχομαι καλό ταξίδι</span>
 </footer>
 
-<!-- ===== MOBILE: sticky bottom action bar ===== -->
+<!-- ===== MOBILE: top tab bar ===== -->
+<nav class="m-tabs" id="mTabs" aria-label="views">
+  <button class="m-tab is-active" data-tab="machine">🎰<span>MACHINE</span></button>
+  <button class="m-tab" data-tab="studio">🎛️<span>STUDIO</span></button>
+  <button class="m-tab" data-tab="output">📸<span>OUTPUT</span></button>
+</nav>
+
+<!-- ===== MOBILE: bottom action bar ===== -->
 <nav class="m-actionbar" id="mActionbar" aria-label="quick actions">
   <button class="m-act" data-act="camera" aria-label="Camera">
     <span class="m-act-ic">📷</span><span class="m-act-lbl">Camera</span>
@@ -236,31 +243,23 @@
   </button>
 </nav>
 
-<!-- ===== MOBILE: bottom-sheet FX drawer ===== -->
-<section class="m-sheet" id="mSheet" data-state="peek" aria-label="effects">
-  <div class="m-sheet-handle" id="mSheetHandle" role="button" tabindex="0" aria-label="Drag to expand effects">
-    <span class="m-sheet-grip"></span>
-    <span class="m-sheet-title">EFFECTS</span>
-    <span class="m-sheet-hint" id="mSheetHint">tap to expand</span>
+<!-- ===== MOBILE: Studio tab (only visible on mobile when its tab is active) ===== -->
+<section class="m-studio-tab" id="mStudioTab" aria-label="Studio controls">
+  <header class="m-studio-h">EFFECTS · MOOD</header>
+  <div class="m-mood-row">
+    <button class="m-mood" data-mood="cinematic">🎬<br/>Cinematic</button>
+    <button class="m-mood" data-mood="sun">☀️<br/>Sun</button>
+    <button class="m-mood" data-mood="faded">🌫️<br/>Faded</button>
+    <button class="m-mood" data-mood="polaroid">📸<br/>Polaroid</button>
+    <button class="m-mood" data-mood="zorba">🕺<br/>Zorba</button>
   </div>
-  <div class="m-sheet-body">
-    <div class="m-mood-row">
-      <button class="m-mood" data-mood="cinematic">🎬<br/>Cinematic</button>
-      <button class="m-mood" data-mood="sun">☀️<br/>Sun</button>
-      <button class="m-mood" data-mood="faded">🌫️<br/>Faded</button>
-      <button class="m-mood" data-mood="polaroid">📸<br/>Polaroid</button>
-      <button class="m-mood" data-mood="zorba">🕺<br/>Zorba</button>
-    </div>
-    <details class="m-advanced">
-      <summary>Advanced · 9 controls</summary>
-      <div class="m-advanced-body" id="mAdvanced">
-        <!-- the FX rack sliders get cloned/moved into here on mobile -->
-      </div>
-      <div class="m-advanced-foot">
-        <button class="mini-btn" id="mFxReset" type="button">RESET</button>
-        <button class="mini-btn" id="mFxRandom" type="button">RANDOM</button>
-      </div>
-    </details>
+  <header class="m-studio-h">ADVANCED · 9 FADERS</header>
+  <div class="m-advanced-body" id="mAdvanced">
+    <!-- FX rack sliders moved here on mobile -->
+  </div>
+  <div class="m-advanced-foot">
+    <button class="mini-btn" id="mFxReset" type="button">RESET</button>
+    <button class="mini-btn" id="mFxRandom" type="button">RANDOM</button>
   </div>
 </section>
 

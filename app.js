@@ -1919,57 +1919,43 @@ saveBtn.addEventListener("click", () => {
     });
   });
 
-  // ---- bottom sheet drag ----
-  const sheet = document.getElementById("mSheet");
-  const handle = document.getElementById("mSheetHandle");
-  const hint = document.getElementById("mSheetHint");
-  const STATES = ["peek", "half", "full"];
-  function setState(s) {
-    sheet.dataset.state = s;
-    hint.textContent = s === "peek" ? "tap to expand"
-                     : s === "half" ? "swipe up for more"
-                     : "swipe down to close";
+  // ---- TAB SWITCHING (MACHINE · STUDIO · OUTPUT) ----
+  function setTab(name) {
+    document.body.dataset.mtab = name;
+    document.querySelectorAll(".m-tab").forEach(t => {
+      t.classList.toggle("is-active", t.dataset.tab === name);
+    });
+    buzz(8);
   }
-  // tap to cycle peek -> half -> full -> peek
-  handle.addEventListener("click", () => {
-    const cur = sheet.dataset.state || "peek";
-    const idx = STATES.indexOf(cur);
-    setState(STATES[(idx + 1) % STATES.length]);
-    buzz(8);
+  // initial
+  setTab("machine");
+  document.querySelectorAll(".m-tab").forEach(t => {
+    t.addEventListener("click", () => setTab(t.dataset.tab));
   });
-  // drag with touch
-  let startY = 0, startH = 0, dragging = false;
-  handle.addEventListener("touchstart", (e) => {
-    dragging = true;
-    startY = e.touches[0].clientY;
-    const rect = sheet.getBoundingClientRect();
-    startH = rect.top;
-    sheet.style.transition = "none";
-  }, { passive: true });
-  handle.addEventListener("touchmove", (e) => {
-    if (!dragging) return;
-    const dy = e.touches[0].clientY - startY;
-    const newTop = Math.max(0, startH + dy);
-    sheet.style.transform = `translateY(${newTop - 0}px)`;
-  }, { passive: true });
-  handle.addEventListener("touchend", (e) => {
-    if (!dragging) return;
-    dragging = false;
-    sheet.style.transition = "";
-    sheet.style.transform = "";
-    // decide snap by drag distance & direction
-    const dy = (e.changedTouches[0].clientY) - startY;
-    const cur = sheet.dataset.state || "peek";
-    let next = cur;
-    if (dy < -40) next = (cur === "peek" ? "half" : "full");
-    else if (dy > 40) next = (cur === "full" ? "half" : "peek");
-    setState(next);
-    buzz(8);
+  // when user pulls the lever, auto-switch to OUTPUT once spin finishes
+  // (we detect this by watching the readout, since lever click is async)
+  const readout = document.getElementById("readoutValue");
+  if (readout) {
+    const mo = new MutationObserver(() => {
+      const txt = readout.textContent || "";
+      if (!state.spinning && state.pick.moustache && document.body.dataset.mtab === "machine") {
+        setTab("output");
+      }
+    });
+    mo.observe(readout, { childList: true, subtree: true });
+  }
+  // when user touches a slider, switch to OUTPUT so they SEE the effect
+  document.addEventListener("input", (e) => {
+    if (e.target.matches && e.target.matches('input[type="range"][data-fx]')) {
+      // small delay so they can see chip changes
+      if (document.body.dataset.mtab !== "output") setTab("output");
+    }
+  });
+  // mood chip click → switch to OUTPUT too
+  document.querySelectorAll(".m-mood").forEach(chip => {
+    chip.addEventListener("click", () => setTimeout(() => setTab("output"), 80));
   });
 
-  // ---- haptic on lever/reels (also for desktop users on supported devices)
+  // ---- haptic on lever
   document.getElementById("lever")?.addEventListener("click", () => buzz([12, 30, 12]));
-
-  // ---- initial state: peek, soft hint that there's more here
-  setState("peek");
 })();
