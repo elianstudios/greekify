@@ -134,6 +134,146 @@ const SHADERS = {
       col = mix(col, vec3(0.0), eyes);
       gl_FragColor = vec4(col, 1.0);
     }`,
+  // ===== ATMOSPHERIC OVERLAYS (transparent, layer over photo) =====
+  acropolis_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0); float a = 0.0;
+      // god rays from top
+      vec2 sun = vec2(0.78, 0.12);
+      vec2 d = uv - sun;
+      float ang = atan(d.y, d.x);
+      float rays = pow(0.5 + 0.5*sin(ang*14.0 + u_t*0.2), 16.0) * (1.0-smoothstep(0.0,0.8,length(d))) * 0.55;
+      col += vec3(1.0,0.92,0.7) * rays;
+      a   += rays * 0.7;
+      // dust motes
+      float motes = pow(max(0.0, sin(uv.x*180.0 + u_t*0.6) * sin(uv.y*140.0 - u_t*0.9)), 28.0);
+      col += vec3(1.0,0.95,0.78) * motes * 1.3;
+      a   += motes * 0.9;
+      // golden hour wash
+      col += vec3(1.0,0.78,0.42) * smoothstep(0.7, 0.0, uv.y) * 0.12;
+      a   += smoothstep(0.7, 0.0, uv.y) * 0.12;
+      // grain + vignette
+      float grain = (hash(uv*vec2(1280.0,720.0) + u_t) - 0.5) * 0.06;
+      col += vec3(grain); a += abs(grain)*0.3;
+      float vig = smoothstep(0.4, 0.95, distance(uv, vec2(0.5)));
+      a += vig * 0.4;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
+  taverna_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0); float a = 0.0;
+      // warm bokeh dots flickering (string lights feel)
+      float bokeh = 0.0;
+      for (int i = 0; i < 9; i++) {
+        float fi = (float(i)+0.5)/9.0;
+        vec2 bp = vec2(fract(fi*1.3 + 0.07), 0.18 + 0.06*sin(fi*9.0));
+        float dd = distance(uv, bp);
+        float fl = 0.7 + 0.3*sin(u_t*(1.5+fi*3.0)+fi*30.0);
+        bokeh += smoothstep(0.07, 0.0, dd) * fl * 0.55;
+      }
+      col += vec3(1.0,0.78,0.42) * bokeh;
+      a   += bokeh * 0.7;
+      // floating embers rising
+      for (int i = 0; i < 6; i++) {
+        float fi = float(i);
+        float ex = fract(fi*0.137 + u_t*0.02);
+        float ey = fract(0.3 + fi*0.21 - u_t*0.07);
+        float ed = distance(uv, vec2(ex, ey));
+        col += vec3(1.0,0.6,0.25) * smoothstep(0.008, 0.0, ed) * 1.6;
+        a   += smoothstep(0.008, 0.0, ed) * 0.8;
+      }
+      // warm sunset wash
+      col += vec3(1.0,0.55,0.3) * smoothstep(1.0, 0.4, uv.y) * 0.18;
+      a   += smoothstep(1.0, 0.4, uv.y) * 0.18;
+      float grain = (hash(uv*vec2(1280.0,720.0) + u_t) - 0.5) * 0.08;
+      col += vec3(grain); a += abs(grain)*0.3;
+      float vig = smoothstep(0.4, 0.95, distance(uv, vec2(0.5)));
+      a += vig * 0.45;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
+  kafenio_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0); float a = 0.0;
+      // drifting cigarette smoke
+      vec2 sUV = uv * vec2(1.0, 1.4) + vec2(u_t*0.02, -u_t*0.04);
+      float smoke = fbm(sUV*2.0);
+      smoke *= smoothstep(0.0, 0.4, uv.y) * (1.0 - smoothstep(0.5, 0.85, uv.y));
+      col += vec3(0.95,0.92,0.88) * smoke * 0.5;
+      a   += smoke * 0.45;
+      // window light shaft
+      float shaft = exp(-pow((uv.x - 0.25 - uv.y*0.1)*8.0, 2.0)) * (1.0-smoothstep(0.0,0.8,uv.y));
+      col += vec3(1.0,0.95,0.75) * shaft * 0.5;
+      a   += shaft * 0.4;
+      // dust motes
+      float motes = pow(max(0.0, sin(uv.x*200.0 - u_t*0.4) * sin(uv.y*160.0 + u_t*0.7)), 32.0);
+      col += vec3(1.0,0.95,0.8) * motes * 1.2;
+      a   += motes * 0.8;
+      // dark moody wash
+      col += vec3(0.25,0.15,0.08) * 0.0;
+      a   += smoothstep(0.0, 1.0, uv.y) * 0.18;
+      float grain = (hash(uv*vec2(1280.0,720.0) + u_t) - 0.5) * 0.1;
+      col += vec3(grain); a += abs(grain)*0.4;
+      float vig = smoothstep(0.35, 0.95, distance(uv, vec2(0.5)));
+      a += vig * 0.55;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
+  village_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0); float a = 0.0;
+      // dry summer haze
+      float haze = fbm(vec2(uv.x*5.0 + u_t*0.08, uv.y*3.0)) * smoothstep(0.3, 0.7, uv.y);
+      col += vec3(1.0,0.9,0.65) * haze * 0.22;
+      a   += haze * 0.22;
+      // sun spot top-right
+      float sd = distance(uv, vec2(0.88, 0.1));
+      float sun = smoothstep(0.55, 0.0, sd) * 0.45;
+      col += vec3(1.0,0.85,0.5) * sun;
+      a   += sun * 0.55;
+      // soft white pollen specks drifting
+      for (int i = 0; i < 8; i++) {
+        float fi = float(i);
+        float px = fract(fi*0.173 + u_t*0.03);
+        float py = fract(fi*0.291 - u_t*0.02);
+        float pd = distance(uv, vec2(px, py));
+        col += vec3(1.0) * smoothstep(0.005, 0.0, pd);
+        a   += smoothstep(0.005, 0.0, pd) * 0.6;
+      }
+      float grain = (hash(uv*vec2(1280.0,720.0) + u_t) - 0.5) * 0.07;
+      col += vec3(grain); a += abs(grain)*0.3;
+      float vig = smoothstep(0.4, 0.95, distance(uv, vec2(0.5)));
+      a += vig * 0.4;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
+  ferry_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0); float a = 0.0;
+      // sea spray particles
+      for (int i = 0; i < 14; i++) {
+        float fi = float(i);
+        float sx = fract(fi*0.117 + u_t*0.05);
+        float sy = fract(0.55 + fi*0.083 + u_t*0.02);
+        float sd = distance(uv, vec2(sx, sy));
+        col += vec3(1.0) * smoothstep(0.004, 0.0, sd) * 0.9;
+        a   += smoothstep(0.004, 0.0, sd) * 0.7;
+      }
+      // cool blue gradient
+      col += vec3(0.3,0.55,0.85) * smoothstep(0.0, 1.0, uv.y) * 0.12;
+      a   += smoothstep(0.0, 1.0, uv.y) * 0.12;
+      // anamorphic lens flare horizontal streak
+      float flare = exp(-pow((uv.y - 0.28)*40.0, 2.0)) * smoothstep(0.0, 0.5, uv.x) * (1.0-smoothstep(0.5,1.0,uv.x));
+      col += vec3(0.7,0.85,1.0) * flare * 0.5;
+      a   += flare * 0.5;
+      float grain = (hash(uv*vec2(1280.0,720.0) + u_t) - 0.5) * 0.06;
+      col += vec3(grain); a += abs(grain)*0.3;
+      float vig = smoothstep(0.4, 0.95, distance(uv, vec2(0.5)));
+      a += vig * 0.45;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
   // Transparent atmospheric overlay for the Mykonos PHOTO base.
   // Draws: warm light leak top-right, animated sun glints on lower half,
   // subtle heat shimmer, and soft vignette. All in alpha — premultiplied
@@ -508,7 +648,11 @@ function shaderSceneDraw(key) {
 const SCENES = [
   {
     id: "acropolis", emoji: "🏛️", label: "Acropolis at noon",
-    draw: shaderSceneDraw("acropolis"),
+    draw: photoSceneDraw(
+      "https://images.unsplash.com/photo-1555993539-1732b0258235?w=1280&q=80",
+      "acropolis_overlay"
+    ),
+    _shader: shaderSceneDraw("acropolis"),
     _legacy(ctx, w, h) {
       // sky
       const sky = ctx.createLinearGradient(0, 0, 0, h);
@@ -547,7 +691,11 @@ const SCENES = [
   },
   {
     id: "taverna", emoji: "🍽️", label: "Taverna at dusk",
-    draw: shaderSceneDraw("taverna"),
+    draw: photoSceneDraw(
+      "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=1280&q=80",
+      "taverna_overlay"
+    ),
+    _shader: shaderSceneDraw("taverna"),
     _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
       sky.addColorStop(0, "#ff9966"); sky.addColorStop(1, "#ffd5a8");
@@ -578,7 +726,11 @@ const SCENES = [
   },
   {
     id: "kafenio", emoji: "☕", label: "Kafeneio (old men staring)",
-    draw: shaderSceneDraw("kafenio"),
+    draw: photoSceneDraw(
+      "https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=1280&q=80",
+      "kafenio_overlay"
+    ),
+    _shader: shaderSceneDraw("kafenio"),
     _legacy(ctx, w, h) {
       ctx.fillStyle = "#e8dcb6"; ctx.fillRect(0, 0, w, h);
       // wall stripe
@@ -640,9 +792,11 @@ const SCENES = [
   {
     id: "village", emoji: "🐈", label: "Village square (cats everywhere)",
     draw(ctx, w, h) {
-      // shader background...
-      shaderSceneDraw("village")(ctx, w, h);
-      // ...plus the cats overlay (canvas 2D, easier than shader sprites)
+      photoSceneDraw(
+        "https://images.unsplash.com/photo-1503152394-c571994fd383?w=1280&q=80",
+        "village_overlay"
+      )(ctx, w, h);
+      // cats stay — they're the joke
       const rng = mulberry32(7);
       for (let i = 0; i < 7; i++) {
         const cx = rng() * w;
@@ -673,7 +827,11 @@ const SCENES = [
   },
   {
     id: "ferry", emoji: "⛴️", label: "On the wrong ferry",
-    draw: shaderSceneDraw("ferry"),
+    draw: photoSceneDraw(
+      "https://images.unsplash.com/photo-1504512485720-7d83a16ee930?w=1280&q=80",
+      "ferry_overlay"
+    ),
+    _shader: shaderSceneDraw("ferry"),
     _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h);
       sky.addColorStop(0, "#a4d8f0"); sky.addColorStop(0.55, "#0d5eaf"); sky.addColorStop(1, "#073d75");
@@ -1169,6 +1327,74 @@ function detectFaceBox() {
   };
 }
 
+// ---------- CINEMATIC POST-PROCESSING ----------
+// Applied to the FINAL composite: chromatic aberration on edges, soft bloom on
+// highlights, per-scene color grade, stronger vignette, fine film grain.
+// Pure Canvas 2D — no extra WebGL pass, keeps it cheap.
+const GRADES = {
+  acropolis: { rMul: 1.06, gMul: 1.02, bMul: 0.92, lift: 6,  warm: true  },
+  taverna:   { rMul: 1.10, gMul: 0.98, bMul: 0.84, lift: 4,  warm: true  },
+  kafenio:   { rMul: 0.96, gMul: 0.94, bMul: 0.90, lift: -8, warm: false },
+  mykonos:   { rMul: 1.02, gMul: 1.02, bMul: 1.06, lift: 8,  warm: true  },
+  village:   { rMul: 1.08, gMul: 1.02, bMul: 0.88, lift: 4,  warm: true  },
+  ferry:     { rMul: 0.94, gMul: 0.98, bMul: 1.10, lift: -4, warm: false },
+};
+function applyCinematicPost(ctx, w, h, sceneId) {
+  const grade = GRADES[sceneId] || GRADES.mykonos;
+  // 1) Color grade + grain via getImageData (one pass)
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i] * grade.rMul + grade.lift;
+    let g = d[i + 1] * grade.gMul + grade.lift;
+    let b = d[i + 2] * grade.bMul + grade.lift;
+    // gentle s-curve contrast
+    r = (r - 128) * 1.08 + 128;
+    g = (g - 128) * 1.08 + 128;
+    b = (b - 128) * 1.08 + 128;
+    // fine grain
+    const n = (Math.random() - 0.5) * 10;
+    d[i]     = r + n < 0 ? 0 : r + n > 255 ? 255 : r + n;
+    d[i + 1] = g + n < 0 ? 0 : g + n > 255 ? 255 : g + n;
+    d[i + 2] = b + n < 0 ? 0 : b + n > 255 ? 255 : b + n;
+  }
+  ctx.putImageData(img, 0, 0);
+  // 2) Soft bloom: blurred bright copy on top with screen blend
+  const off = document.createElement("canvas");
+  off.width = w; off.height = h;
+  const octx = off.getContext("2d");
+  octx.drawImage(ctx.canvas, 0, 0);
+  octx.filter = "blur(14px) brightness(1.6) contrast(1.2)";
+  octx.globalCompositeOperation = "source-over";
+  octx.drawImage(off, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.28;
+  ctx.drawImage(off, 0, 0);
+  ctx.restore();
+  // 3) Chromatic aberration on edges (red shifted left, blue right, masked to vignette)
+  const ca = document.createElement("canvas");
+  ca.width = w; ca.height = h;
+  const cctx = ca.getContext("2d");
+  cctx.drawImage(ctx.canvas, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(ca, -2, 0); // shift
+  ctx.drawImage(ca,  2, 0);
+  ctx.restore();
+  // 4) Strong cinematic vignette
+  const vg = ctx.createRadialGradient(w/2, h/2, w*0.35, w/2, h/2, w*0.72);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+  // 5) Letterbox-ish top/bottom subtle dark bars for "film" feel
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.fillRect(0, 0, w, 8);
+  ctx.fillRect(0, h - 8, w, 8);
+}
+
 function drawComposite() {
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
@@ -1206,6 +1432,12 @@ function drawComposite() {
   // 4. prop on top of everything
   if (state.pick.prop && state.img) {
     state.pick.prop.draw(ctx, w, h, detectFaceBox());
+  }
+
+  // 4.5 CINEMATIC POST-PROCESSING — color grade, bloom, chromatic ab, vignette
+  if (state.pick.scene) {
+    try { applyCinematicPost(ctx, w, h, state.pick.scene.id); }
+    catch (e) { console.warn("post fx skipped:", e); }
   }
 
   // 5. tourist t-shirt watermark
