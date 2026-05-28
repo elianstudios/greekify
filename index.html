@@ -8,8 +8,104 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;900&family=EB+Garamond:ital,wght@0,500;1,500&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 </head>
-<body>
+<body class="studio">
+
+<!-- ===== STUDIO SHELL ===== -->
+<div class="studio-bg" aria-hidden="true">
+  <div class="studio-grid"></div>
+  <div class="studio-scan"></div>
+  <div class="studio-glow studio-glow-1"></div>
+  <div class="studio-glow studio-glow-2"></div>
+</div>
+
+<!-- patch-cable SVG layer (drawn on top of bg, under content) -->
+<svg class="patch-layer" aria-hidden="true">
+  <defs>
+    <linearGradient id="cableA" x1="0" x2="1">
+      <stop offset="0" stop-color="#43c1f5" stop-opacity="0.0"/>
+      <stop offset="0.15" stop-color="#43c1f5" stop-opacity="0.95"/>
+      <stop offset="0.85" stop-color="#ffd54f" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffd54f" stop-opacity="0.0"/>
+    </linearGradient>
+    <linearGradient id="cableB" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff8a00" stop-opacity="0.0"/>
+      <stop offset="0.2" stop-color="#ff8a00" stop-opacity="0.9"/>
+      <stop offset="0.8" stop-color="#c4292b" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#c4292b" stop-opacity="0.0"/>
+    </linearGradient>
+    <filter id="cableGlow"><feGaussianBlur stdDeviation="2.5"/></filter>
+  </defs>
+  <path id="patch1" d="M0,0" stroke="url(#cableA)" stroke-width="3" fill="none" filter="url(#cableGlow)" />
+  <path id="patch2" d="M0,0" stroke="url(#cableB)" stroke-width="3" fill="none" filter="url(#cableGlow)" />
+</svg>
+
+<!-- LEFT RAIL — FX RACK + tween-in modules -->
+<aside class="rail" id="rail">
+
+  <div class="rail-head">
+    <span class="led pulse"></span>
+    <span class="mono">GREEKIFY · STUDIO</span>
+    <span class="rail-ver">v0.7</span>
+  </div>
+
+  <section class="rack-mod" data-stagger="0">
+    <header class="rack-h"><span class="led"></span>SOURCE</header>
+    <div class="rack-body">
+      <div class="rack-row">
+        <span class="rack-lbl">FACE LOCK</span>
+        <span class="rack-val" id="rackFace">—</span>
+      </div>
+      <div class="rack-row">
+        <span class="rack-lbl">FORMAT</span>
+        <span class="rack-val" id="rackFmt">—</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="rack-mod" data-stagger="1">
+    <header class="rack-h"><span class="led"></span>FX RACK</header>
+    <div class="rack-body fx-grid" id="fxRack">
+      <!-- sliders injected by JS -->
+    </div>
+    <footer class="rack-foot">
+      <button class="mini-btn" id="fxReset" type="button">RESET</button>
+      <button class="mini-btn" id="fxRandom" type="button">RANDOM</button>
+    </footer>
+  </section>
+
+  <section class="rack-mod" data-stagger="2">
+    <header class="rack-h"><span class="led"></span>OUTPUT</header>
+    <div class="rack-body">
+      <div class="rack-row">
+        <span class="rack-lbl">SCENE</span>
+        <span class="rack-val" id="rackScene">—</span>
+      </div>
+      <div class="meter-row">
+        <span class="rack-lbl">FPS</span>
+        <div class="meter"><div class="meter-fill" id="meterFps"></div></div>
+        <span class="rack-val mono" id="rackFps">0</span>
+      </div>
+      <div class="meter-row">
+        <span class="rack-lbl">CPU</span>
+        <div class="meter"><div class="meter-fill alt" id="meterCpu"></div></div>
+        <span class="rack-val mono" id="rackCpu">0%</span>
+      </div>
+    </div>
+  </section>
+
+</aside>
+
+<!-- bottom status bar -->
+<div class="statusbar mono" id="statusbar">
+  <span class="sb-item"><span class="led tiny ok"></span>STUDIO READY</span>
+  <span class="sb-item" id="sbScene">scene: —</span>
+  <span class="sb-item" id="sbFace">face: —</span>
+  <span class="sb-item" id="sbFps">fps: 0</span>
+  <span class="sb-spacer"></span>
+  <span class="sb-item">↑↑↓↓←→←→BA · ΟΠΑ!</span>
+</div>
 
 <div class="grain" aria-hidden="true"></div>
 
@@ -124,7 +220,7 @@
 <footer class="foot">
   <span>Made in 5 minutes · No Greeks were harmed</span>
   <span class="evil-eye" title="μάτι">🧿</span>
-  <span>v0.6 · σου εύχομαι καλό ταξίδι</span>
+  <span>v0.7 · σου εύχομαι καλό ταξίδι</span>
 </footer>
 
 <!-- Konami easter egg overlay (full-viewport, click-through when idle) -->

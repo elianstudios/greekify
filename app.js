@@ -1339,57 +1339,103 @@ const GRADES = {
   village:   { rMul: 1.08, gMul: 1.02, bMul: 0.88, lift: 4,  warm: true  },
   ferry:     { rMul: 0.94, gMul: 0.98, bMul: 1.10, lift: -4, warm: false },
 };
+// FX state — driven by the left-rail sliders, persisted in localStorage.
+const FX_DEFAULTS = {
+  exposure: 0,      // -1..+1
+  contrast: 1.08,   // 0.6..1.6
+  saturation: 1.0,  // 0..1.5
+  warmth: 0,        // -1..+1
+  grain: 0.4,       // 0..1
+  bloom: 0.28,      // 0..1
+  chroma: 0.35,     // 0..1
+  vignette: 0.55,   // 0..1
+  intensity: 1.0,   // 0..1.5  (overlay shader strength — visual hint only here)
+};
+const FX = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem("greekify.fx") || "{}");
+    return Object.assign({}, FX_DEFAULTS, saved);
+  } catch { return Object.assign({}, FX_DEFAULTS); }
+})();
+function saveFx() {
+  try { localStorage.setItem("greekify.fx", JSON.stringify(FX)); } catch {}
+}
+
 function applyCinematicPost(ctx, w, h, sceneId) {
   const grade = GRADES[sceneId] || GRADES.mykonos;
-  // 1) Color grade + grain via getImageData (one pass)
+  // user FX
+  const exp   = FX.exposure;
+  const con   = FX.contrast;
+  const sat   = FX.saturation;
+  const warm  = FX.warmth;
+  const grainAmt = FX.grain;
+  // 1) Color grade + grain via getImageData
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
+  const expMul = Math.pow(2, exp);          // stops
+  const warmR = 1 + warm * 0.18;
+  const warmB = 1 - warm * 0.18;
   for (let i = 0; i < d.length; i += 4) {
-    let r = d[i] * grade.rMul + grade.lift;
+    let r = d[i]     * grade.rMul + grade.lift;
     let g = d[i + 1] * grade.gMul + grade.lift;
     let b = d[i + 2] * grade.bMul + grade.lift;
-    // gentle s-curve contrast
-    r = (r - 128) * 1.08 + 128;
-    g = (g - 128) * 1.08 + 128;
-    b = (b - 128) * 1.08 + 128;
-    // fine grain
-    const n = (Math.random() - 0.5) * 10;
+    // exposure
+    r *= expMul; g *= expMul; b *= expMul;
+    // warmth
+    r *= warmR; b *= warmB;
+    // s-curve contrast
+    r = (r - 128) * con + 128;
+    g = (g - 128) * con + 128;
+    b = (b - 128) * con + 128;
+    // saturation (luma blend)
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = lum + (r - lum) * sat;
+    g = lum + (g - lum) * sat;
+    b = lum + (b - lum) * sat;
+    // grain
+    const n = (Math.random() - 0.5) * 24 * grainAmt;
     d[i]     = r + n < 0 ? 0 : r + n > 255 ? 255 : r + n;
     d[i + 1] = g + n < 0 ? 0 : g + n > 255 ? 255 : g + n;
     d[i + 2] = b + n < 0 ? 0 : b + n > 255 ? 255 : b + n;
   }
   ctx.putImageData(img, 0, 0);
-  // 2) Soft bloom: blurred bright copy on top with screen blend
-  const off = document.createElement("canvas");
-  off.width = w; off.height = h;
-  const octx = off.getContext("2d");
-  octx.drawImage(ctx.canvas, 0, 0);
-  octx.filter = "blur(14px) brightness(1.6) contrast(1.2)";
-  octx.globalCompositeOperation = "source-over";
-  octx.drawImage(off, 0, 0);
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  ctx.globalAlpha = 0.28;
-  ctx.drawImage(off, 0, 0);
-  ctx.restore();
-  // 3) Chromatic aberration on edges (red shifted left, blue right, masked to vignette)
-  const ca = document.createElement("canvas");
-  ca.width = w; ca.height = h;
-  const cctx = ca.getContext("2d");
-  cctx.drawImage(ctx.canvas, 0, 0);
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  ctx.globalAlpha = 0.35;
-  ctx.drawImage(ca, -2, 0); // shift
-  ctx.drawImage(ca,  2, 0);
-  ctx.restore();
-  // 4) Strong cinematic vignette
-  const vg = ctx.createRadialGradient(w/2, h/2, w*0.35, w/2, h/2, w*0.72);
-  vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.55)");
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, w, h);
-  // 5) Letterbox-ish top/bottom subtle dark bars for "film" feel
+  // 2) Bloom
+  if (FX.bloom > 0.01) {
+    const off = document.createElement("canvas");
+    off.width = w; off.height = h;
+    const octx = off.getContext("2d");
+    octx.drawImage(ctx.canvas, 0, 0);
+    octx.filter = "blur(14px) brightness(1.6) contrast(1.2)";
+    octx.drawImage(off, 0, 0);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = FX.bloom;
+    ctx.drawImage(off, 0, 0);
+    ctx.restore();
+  }
+  // 3) Chromatic aberration
+  if (FX.chroma > 0.01) {
+    const ca = document.createElement("canvas");
+    ca.width = w; ca.height = h;
+    const cctx = ca.getContext("2d");
+    cctx.drawImage(ctx.canvas, 0, 0);
+    const px = 1 + FX.chroma * 4;
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = FX.chroma;
+    ctx.drawImage(ca, -px, 0);
+    ctx.drawImage(ca,  px, 0);
+    ctx.restore();
+  }
+  // 4) Vignette
+  if (FX.vignette > 0.01) {
+    const vg = ctx.createRadialGradient(w/2, h/2, w*0.35, w/2, h/2, w*0.72);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, `rgba(0,0,0,${0.7 * FX.vignette})`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+  }
+  // 5) Letterbox bars
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(0, 0, w, 8);
   ctx.fillRect(0, h - 8, w, 8);
@@ -1630,6 +1676,157 @@ saveBtn.addEventListener("click", () => {
 
 // ---------- placeholder canvas tint ----------
 (function placeholder() {
-  ctx.fillStyle = "#f4ecd8";
+  ctx.fillStyle = "#0b0e12";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+})();
+
+// ============================================================
+// STUDIO MODE — left rail FX sliders, status bar, patch cables
+// ============================================================
+(function studio() {
+  const rack = document.getElementById("fxRack");
+  if (!rack) return;
+  const SPECS = [
+    { id: "exposure",   label: "EXPOSURE",  min: -1,  max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "contrast",   label: "CONTRAST",  min: 0.6, max: 1.6,  step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "saturation", label: "SAT",       min: 0,   max: 1.5,  step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "warmth",     label: "WARMTH",    min: -1,  max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "grain",      label: "GRAIN",     min: 0,   max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "bloom",      label: "BLOOM",     min: 0,   max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "chroma",     label: "CHROMA",    min: 0,   max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "vignette",   label: "VIGNETTE",  min: 0,   max: 1,    step: 0.01, fmt: v => v.toFixed(2) },
+    { id: "intensity",  label: "INTENSITY", min: 0,   max: 1.5,  step: 0.01, fmt: v => v.toFixed(2) },
+  ];
+  // throttle redraws (the post-FX loop is heavy at 640px)
+  let redrawT = 0;
+  function scheduleRedraw() {
+    if (redrawT) return;
+    redrawT = requestAnimationFrame(() => {
+      redrawT = 0;
+      if (state.img && state.pick.scene) drawComposite();
+    });
+  }
+  function setSliderTrackPct(input) {
+    const pct = ((+input.value - +input.min) / (+input.max - +input.min)) * 100;
+    input.style.setProperty("--pct", pct + "%");
+  }
+  for (const s of SPECS) {
+    const wrap = document.createElement("div");
+    wrap.className = "fx-slot";
+    wrap.innerHTML = `
+      <span class="fx-name">${s.label}</span>
+      <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${FX[s.id]}" data-fx="${s.id}" />
+      <span class="fx-val" data-out="${s.id}">${s.fmt(FX[s.id])}</span>
+    `;
+    rack.appendChild(wrap);
+    const input = wrap.querySelector("input");
+    const out = wrap.querySelector(".fx-val");
+    setSliderTrackPct(input);
+    input.addEventListener("input", () => {
+      const v = parseFloat(input.value);
+      FX[s.id] = v;
+      out.textContent = s.fmt(v);
+      setSliderTrackPct(input);
+      saveFx();
+      scheduleRedraw();
+    });
+  }
+  document.getElementById("fxReset")?.addEventListener("click", () => {
+    Object.assign(FX, FX_DEFAULTS);
+    saveFx();
+    rack.querySelectorAll("input[data-fx]").forEach(inp => {
+      const id = inp.dataset.fx;
+      inp.value = FX[id];
+      const out = rack.querySelector(`[data-out="${id}"]`);
+      const spec = SPECS.find(x => x.id === id);
+      out.textContent = spec.fmt(FX[id]);
+      setSliderTrackPct(inp);
+    });
+    scheduleRedraw();
+  });
+  document.getElementById("fxRandom")?.addEventListener("click", () => {
+    for (const s of SPECS) {
+      const v = s.min + Math.random() * (s.max - s.min);
+      FX[s.id] = v;
+      const inp = rack.querySelector(`input[data-fx="${s.id}"]`);
+      const out = rack.querySelector(`[data-out="${s.id}"]`);
+      inp.value = v;
+      out.textContent = s.fmt(v);
+      setSliderTrackPct(inp);
+    }
+    saveFx();
+    scheduleRedraw();
+  });
+
+  // ===== status bar / rack readouts =====
+  const rackFace = document.getElementById("rackFace");
+  const rackFmt = document.getElementById("rackFmt");
+  const rackScene = document.getElementById("rackScene");
+  const rackFps = document.getElementById("rackFps");
+  const rackCpu = document.getElementById("rackCpu");
+  const meterFps = document.getElementById("meterFps");
+  const meterCpu = document.getElementById("meterCpu");
+  const sbScene = document.getElementById("sbScene");
+  const sbFace = document.getElementById("sbFace");
+  const sbFps = document.getElementById("sbFps");
+
+  function updateReadouts() {
+    rackFace.textContent = state.faceDetected ? "LOCKED" : (state.img ? "fallback" : "—");
+    sbFace.textContent  = "face: " + (state.faceDetected ? "locked" : (state.img ? "fallback" : "—"));
+    rackFmt.textContent = state.img ? `${state.img.naturalWidth}×${state.img.naturalHeight}` : "—";
+    const sc = state.pick.scene ? state.pick.scene.label : "—";
+    rackScene.textContent = sc;
+    sbScene.textContent = "scene: " + sc;
+  }
+  // poll, cheap
+  setInterval(updateReadouts, 400);
+
+  // fps + fake cpu
+  let last = performance.now(), frames = 0, fps = 0;
+  function fpsLoop(now) {
+    frames++;
+    if (now - last > 500) {
+      fps = Math.round(frames * 1000 / (now - last));
+      frames = 0; last = now;
+      rackFps.textContent = fps;
+      sbFps.textContent = "fps: " + fps;
+      meterFps.style.width = Math.min(100, fps / 60 * 100) + "%";
+      const cpu = Math.max(5, Math.min(95, 100 - fps * 1.4));
+      rackCpu.textContent = Math.round(cpu) + "%";
+      meterCpu.style.width = cpu + "%";
+    }
+    requestAnimationFrame(fpsLoop);
+  }
+  requestAnimationFrame(fpsLoop);
+
+  // ===== patch cables =====
+  const patch1 = document.getElementById("patch1");
+  const patch2 = document.getElementById("patch2");
+  function cablePath(ax, ay, bx, by) {
+    const dx = bx - ax;
+    const sag = Math.min(80, Math.abs(dx) * 0.25 + 30);
+    const cx1 = ax + dx * 0.4, cy1 = ay + sag;
+    const cx2 = ax + dx * 0.6, cy2 = by + sag;
+    return `M ${ax},${ay} C ${cx1},${cy1} ${cx2},${cy2} ${bx},${by}`;
+  }
+  function drawCables() {
+    const rail = document.getElementById("rail");
+    const machine = document.querySelector(".slot-panel");
+    const polaroid = document.getElementById("polaroid");
+    if (!rail || !machine || !polaroid || !patch1 || !patch2) return;
+    const r = rail.getBoundingClientRect();
+    const m = machine.getBoundingClientRect();
+    const p = polaroid.getBoundingClientRect();
+    // cable 1: rail (right edge, middle) -> machine (left edge, middle)
+    patch1.setAttribute("d", cablePath(r.right, r.top + r.height * 0.45, m.left, m.top + m.height * 0.5));
+    // cable 2: machine (right) -> polaroid (left)
+    patch2.setAttribute("d", cablePath(m.right, m.top + m.height * 0.5, p.left, p.top + p.height * 0.45));
+    document.body.classList.add("cables-on");
+  }
+  // wait until layout is stable & rack-mod anims start
+  setTimeout(drawCables, 600);
+  addEventListener("resize", drawCables);
+  addEventListener("scroll", drawCables, { passive: true });
+  // redraw cables periodically — polaroid moves when image loads
+  setInterval(drawCables, 1000);
 })();
