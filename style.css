@@ -463,10 +463,29 @@ html, body {
   transition: transform 0.4s;
 }
 .polaroid-frame:hover { transform: rotate(0); }
-#canvas {
+.polaroid-frame { isolation: isolate; }
+#bgGl, #canvas {
   width: 100%;
   height: auto;
   display: block;
+  border-radius: 2px;
+}
+#bgGl {
+  position: absolute;
+  inset: 12px 12px 6px;
+  width: calc(100% - 24px);
+  height: calc(100% - 18px);
+  z-index: 0;
+  background: #f4ecd8;
+}
+#canvas {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  mix-blend-mode: normal;
+}
+.polaroid.ready #canvas { background: transparent; }
+.polaroid:not(.ready) #canvas {
   background:
     repeating-conic-gradient(var(--bone-2) 0 25%, var(--bone) 0 50%) 0 0 / 32px 32px;
 }

@@ -2,6 +2,323 @@
    GREEKIFY — selfie slot machine. No backend. No shame.
    ============================================================ */
 
+/* ============================================================
+   WEBGL SHADER ENGINE — animated scene backgrounds
+   ============================================================ */
+const VERT = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+// shared GLSL helpers, prepended to each fragment shader
+const FRAG_PRELUDE = `
+precision highp float;
+varying vec2 v_uv;
+uniform float u_t;     // time in seconds
+uniform vec2  u_res;   // canvas px size
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p);
+  float a = hash(i), b = hash(i + vec2(1,0)), c = hash(i + vec2(0,1)), d = hash(i + vec2(1,1));
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.02; a *= 0.5; }
+  return v;
+}
+`;
+
+// per-scene fragment shaders. uv: 0..1, origin top-left
+const SHADERS = {
+  acropolis: `
+    void main() {
+      vec2 uv = v_uv;
+      // sky gradient w/ subtle drifting clouds
+      vec3 sky = mix(vec3(0.62,0.84,1.0), vec3(0.97,0.82,0.27), pow(uv.y, 1.3));
+      float clouds = fbm(vec2(uv.x*3.0 + u_t*0.04, uv.y*5.0));
+      clouds = smoothstep(0.55, 0.78, clouds) * (1.0 - smoothstep(0.45, 0.62, uv.y));
+      sky = mix(sky, vec3(1.0), clouds * 0.55);
+      // sun w/ lens flare
+      vec2 sunPos = vec2(0.78, 0.22);
+      float d = distance(uv, sunPos);
+      vec3 sun = vec3(1.0,0.98,0.85) * smoothstep(0.18, 0.0, d);
+      sun += vec3(1.0,0.85,0.4) * (1.0 - smoothstep(0.0, 0.5, d)) * 0.25;
+      sky += sun;
+      // hill — wavy silhouette w/ heat shimmer
+      float hillY = 0.72 - 0.12 * (sin(uv.x*3.14159) - 0.3);
+      float shimmer = sin(uv.y*200.0 + u_t*3.0)*0.002 * smoothstep(0.6, 0.72, uv.y);
+      float hillMask = step(hillY, uv.y + shimmer);
+      vec3 hill = mix(vec3(0.76,0.66,0.42), vec3(0.55,0.45,0.28), uv.y);
+      // marble parthenon
+      vec2 pUV = (uv - vec2(0.32, 0.55)) / vec2(0.36, 0.18);
+      float pInside = step(0.0, pUV.x) * step(pUV.x, 1.0) * step(0.18, pUV.y) * step(pUV.y, 1.0);
+      vec3 marble = vec3(0.94,0.9,0.78) + fbm(pUV*12.0)*0.06;
+      // columns
+      float cols = step(0.5, fract(pUV.x*8.0));
+      float colMask = pInside * step(0.2, pUV.y) * step(pUV.y, 0.85) * cols;
+      marble = mix(marble*0.85, marble, cols);
+      // pediment triangle
+      float ped = pInside * step(pUV.y, 0.2) * step(abs(pUV.x-0.5), 0.5 * (pUV.y/0.2));
+      vec3 col = mix(sky, hill, hillMask);
+      col = mix(col, marble, pInside * (1.0 - hillMask*0.3));
+      col = mix(col, marble*1.05, ped);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  taverna: `
+    void main() {
+      vec2 uv = v_uv;
+      // dusk sky
+      vec3 sky = mix(vec3(1.0,0.6,0.4), vec3(1.0,0.84,0.66), pow(1.0-uv.y, 1.3));
+      sky = mix(sky, vec3(0.35,0.22,0.12), smoothstep(0.55, 0.65, uv.y));
+      // sun on horizon
+      float sun = smoothstep(0.06, 0.0, distance(uv, vec2(0.5, 0.58)));
+      sky += vec3(1.0,0.7,0.4) * sun * 0.7;
+      // string lights — curve y = 0.18 + sag*sin
+      float lightCurve = 0.14 + 0.07 * sin(uv.x * 3.14159);
+      // 10 bulbs
+      float bulbs = 0.0;
+      for (int i = 0; i < 10; i++) {
+        float fi = (float(i)+0.5)/10.0;
+        vec2 bp = vec2(fi, 0.14 + 0.07*sin(fi*3.14159));
+        float d = distance(uv*vec2(u_res.x/u_res.y, 1.0), bp*vec2(u_res.x/u_res.y, 1.0));
+        float flick = 0.85 + 0.15 * sin(u_t * (2.0 + fi*4.0) + fi*30.0);
+        bulbs += smoothstep(0.012, 0.0, d) * flick * 1.2;
+        bulbs += smoothstep(0.06, 0.0, d) * flick * 0.25;
+      }
+      // wire
+      float wire = smoothstep(0.003, 0.0, abs(uv.y - lightCurve));
+      // checkered tablecloth (bottom 25%)
+      vec2 tc = floor(uv * vec2(16.0, 9.0));
+      float checker = mod(tc.x + tc.y, 2.0);
+      vec3 cloth = mix(vec3(0.96,0.93,0.85), vec3(0.77,0.16,0.17), checker);
+      float clothMask = step(0.75, uv.y);
+      vec3 col = sky;
+      col = mix(col, cloth, clothMask);
+      col += vec3(1.0,0.85,0.4) * bulbs;
+      col = mix(col, vec3(0.1), wire * 0.7);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  kafenio: `
+    void main() {
+      vec2 uv = v_uv;
+      // warm beige wall
+      vec3 wall = vec3(0.91,0.86,0.71) - fbm(uv*8.0)*0.05;
+      // greek-blue stripe
+      float stripe = step(0.55, uv.y) * step(uv.y, 0.6);
+      // wood floor below 0.78
+      float floorMask = step(0.78, uv.y);
+      vec3 floorCol = vec3(0.6,0.45,0.27) + fbm(vec2(uv.x*20.0, uv.y*60.0))*0.1;
+      // cigarette smoke drifting up
+      vec2 sUV = uv * vec2(1.0, 2.0) + vec2(u_t*0.02, -u_t*0.05);
+      float smoke = fbm(sUV*2.0) * (1.0 - smoothstep(0.3, 0.7, uv.y));
+      smoke *= smoothstep(0.0, 0.3, uv.y);
+      // 4 pairs of suspicious eyes that blink
+      float eyes = 0.0;
+      for (int i = 0; i < 4; i++) {
+        float fi = (float(i)+0.5)/4.0;
+        float blink = step(0.05, fract(u_t*0.3 + fi*1.7));
+        vec2 e1 = vec2(fi - 0.015, 0.5);
+        vec2 e2 = vec2(fi + 0.015, 0.5);
+        eyes += smoothstep(0.008, 0.0, distance(uv, e1)) * blink;
+        eyes += smoothstep(0.008, 0.0, distance(uv, e2)) * blink;
+      }
+      vec3 col = wall;
+      col = mix(col, vec3(0.05,0.37,0.69), stripe);
+      col = mix(col, floorCol, floorMask);
+      col = mix(col, vec3(0.95), smoke * 0.55);
+      col = mix(col, vec3(0.0), eyes);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  mykonos: `
+    void main() {
+      vec2 uv = v_uv;
+      // sky
+      vec3 sky = mix(vec3(0.65,0.91,1.0), vec3(0.26,0.76,0.96), uv.y*2.0);
+      // sea (0.5..0.75)
+      float seaMask = step(0.5, uv.y) * step(uv.y, 0.78);
+      vec2 seaUV = vec2(uv.x, (uv.y - 0.5) * 4.0);
+      float waves =
+        sin(seaUV.x*30.0 + u_t*1.2 + seaUV.y*2.0)*0.5 +
+        sin(seaUV.x*70.0 - u_t*2.0)*0.25 +
+        fbm(seaUV*8.0 + vec2(u_t*0.1, 0))*0.5;
+      vec3 sea = mix(vec3(0.03,0.24,0.55), vec3(0.09,0.5,0.85), waves*0.5+0.5);
+      // sun glitter
+      float glint = pow(max(0.0, sin(seaUV.x*120.0 + u_t*5.0) * sin(seaUV.y*40.0)), 12.0);
+      sea += vec3(1.0,0.95,0.8) * glint * 0.8 * smoothstep(0.0, 0.6, uv.x) * (1.0-smoothstep(0.7,1.0,uv.x));
+      // sand
+      float sandMask = step(0.78, uv.y);
+      vec3 sand = vec3(0.95,0.89,0.72) + fbm(uv*30.0)*0.08;
+      // white houses
+      float house = 0.0;
+      house += step(0.08, uv.x)*step(uv.x, 0.2)*step(0.4, uv.y)*step(uv.y, 0.52);
+      house += step(0.18, uv.x)*step(uv.x, 0.28)*step(0.36, uv.y)*step(uv.y, 0.52);
+      // blue dome
+      float dome = smoothstep(0.04, 0.038, distance(uv, vec2(0.23, 0.36))) * step(uv.y, 0.36);
+      vec3 col = sky;
+      col = mix(col, sea, seaMask);
+      col = mix(col, sand, sandMask);
+      col = mix(col, vec3(0.98), house);
+      col = mix(col, vec3(0.05,0.37,0.69), dome);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  village: `
+    void main() {
+      vec2 uv = v_uv;
+      // hot sky
+      vec3 sky = mix(vec3(0.95,0.85,0.6), vec3(0.85,0.75,0.5), uv.y);
+      // sun rays
+      vec2 sunPos = vec2(0.85, 0.15);
+      vec2 d = uv - sunPos;
+      float ang = atan(d.y, d.x);
+      float rays = pow(0.5 + 0.5*sin(ang*8.0 + u_t*0.3), 8.0) * (1.0 - smoothstep(0.0, 0.6, length(d))) * 0.4;
+      sky += vec3(1.0,0.95,0.8) * rays;
+      // dirt ground
+      float groundMask = step(0.6, uv.y);
+      vec3 ground = vec3(0.64,0.46,0.26) + fbm(uv*15.0)*0.12;
+      // tile roof line ~ 0.6
+      float roof = 0.0;
+      for (int i = 0; i < 14; i++) {
+        float fi = (float(i)+0.5)/14.0;
+        float d2 = distance(uv*vec2(2.0,1.0), vec2(fi*2.0, 0.6));
+        roof += smoothstep(0.04, 0.035, d2) * step(uv.y, 0.6);
+      }
+      // heat shimmer near horizon
+      float shim = sin(uv.y*100.0 + u_t*4.0) * 0.003 * smoothstep(0.55, 0.62, uv.y);
+      vec3 col = sky;
+      col = mix(col, ground, step(0.6 + shim, uv.y));
+      col = mix(col, vec3(0.77,0.34,0.17), roof);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  ferry: `
+    void main() {
+      vec2 uv = v_uv;
+      // sky to deep sea gradient
+      vec3 sky = mix(vec3(0.64,0.85,0.94), vec3(0.05,0.37,0.69), pow(uv.y, 1.5));
+      // procedural water below ~0.5
+      float waterMask = step(0.5, uv.y);
+      vec2 wUV = vec2(uv.x*4.0, (uv.y-0.5)*8.0);
+      float w =
+        sin(wUV.x*2.0 + u_t*1.5 + sin(wUV.y*1.5 + u_t)*0.6)*0.5 +
+        sin(wUV.x*7.0 - u_t*3.0)*0.2 +
+        fbm(wUV + vec2(u_t*0.2, 0))*0.6;
+      vec3 water = mix(vec3(0.04,0.18,0.4), vec3(0.13,0.55,0.85), w*0.5+0.5);
+      // foam crests
+      float foam = smoothstep(0.6, 0.9, w) * smoothstep(0.5, 0.55, uv.y);
+      water += vec3(1.0) * foam * 0.7;
+      // distant ferry silhouette
+      vec2 fUV = uv;
+      float ferryY = 0.68;
+      float ferryBody = step(0.55, fUV.x)*step(fUV.x, 0.95)*step(ferryY, fUV.y)*step(fUV.y, ferryY+0.05);
+      // bow taper
+      ferryBody *= step(0.0, (fUV.x-0.55)*0.05 - (fUV.y-ferryY-0.05));
+      float ferryCabin = step(0.63, fUV.x)*step(fUV.x, 0.88)*step(0.62, fUV.y)*step(fUV.y, ferryY);
+      vec3 col = mix(sky, water, waterMask);
+      col = mix(col, vec3(0.03,0.03,0.04), ferryBody + ferryCabin);
+      // wake glow
+      float wake = exp(-pow((uv.x - 0.7)*4.0, 2.0)) * smoothstep(0.78, 0.7, uv.y) * 0.3;
+      col += vec3(1.0) * wake;
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+};
+
+class SceneRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.gl = canvas.getContext("webgl", { antialias: true, preserveDrawingBuffer: true });
+    if (!this.gl) { this.gl = null; return; }
+    this.programs = {};
+    this.start = performance.now();
+    this.currentKey = null;
+    this.raf = 0;
+    this._initQuad();
+  }
+  _initQuad() {
+    const gl = this.gl;
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  }
+  _compile(src, type) {
+    const gl = this.gl;
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      console.error("shader err", gl.getShaderInfoLog(sh), src);
+      return null;
+    }
+    return sh;
+  }
+  _program(key) {
+    if (this.programs[key]) return this.programs[key];
+    const gl = this.gl;
+    const vs = this._compile(VERT, gl.VERTEX_SHADER);
+    const fs = this._compile(FRAG_PRELUDE + SHADERS[key], gl.FRAGMENT_SHADER);
+    if (!vs || !fs) return null;
+    const p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs);
+    gl.bindAttribLocation(p, 0, "a_pos");
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error("link err", gl.getProgramInfoLog(p));
+      return null;
+    }
+    this.programs[key] = {
+      prog: p,
+      u_t: gl.getUniformLocation(p, "u_t"),
+      u_res: gl.getUniformLocation(p, "u_res"),
+    };
+    return this.programs[key];
+  }
+  play(key) {
+    if (!this.gl || !SHADERS[key]) return;
+    this.currentKey = key;
+    cancelAnimationFrame(this.raf);
+    const frame = () => {
+      this._drawFrame(key, (performance.now() - this.start) / 1000);
+      this.raf = requestAnimationFrame(frame);
+    };
+    frame();
+  }
+  stop() { cancelAnimationFrame(this.raf); }
+  _drawFrame(key, t) {
+    const gl = this.gl;
+    const p = this._program(key);
+    if (!p) return;
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    gl.useProgram(p.prog);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(p.u_t, t);
+    gl.uniform2f(p.u_res, this.canvas.width, this.canvas.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  // Render a single frame at a chosen time into an offscreen canvas, then
+  // return it as an HTMLCanvasElement we can drawImage into the 2D composite.
+  snapshot(key, t = (performance.now() - this.start) / 1000) {
+    if (!this.gl) return null;
+    this._drawFrame(key, t);
+    // return THIS canvas; caller drawImages it
+    return this.canvas;
+  }
+}
+
+// init once
+let sceneRenderer = null;
+function ensureSceneRenderer() {
+  if (sceneRenderer) return sceneRenderer;
+  const c = document.getElementById("bgGl");
+  if (!c) return null;
+  sceneRenderer = new SceneRenderer(c);
+  return sceneRenderer;
+}
+
+
 // ---------- REEL DATA ----------
 // Each item: { id, emoji, label, draw(ctx, w, h, faceBox) }
 // faceBox is a rough rectangle where the face is, so overlays land nicely.
@@ -85,10 +402,34 @@ const MOUSTACHES = [
   },
 ];
 
+// Each scene now delegates its drawing to the WebGL renderer.
+// `draw(ctx, w, h)` is called once at composite-time to bake a still frame
+// into the 2D composite canvas (so Save PNG includes the scene).
+// We also kick off the live animated loop on the bg canvas.
+function shaderSceneDraw(key) {
+  return function (ctx, w, h) {
+    const r = ensureSceneRenderer();
+    if (!r || !r.gl) {
+      // graceful fallback: plain blue
+      ctx.fillStyle = "#4aa3df"; ctx.fillRect(0, 0, w, h);
+      return;
+    }
+    // make sure the gl canvas matches our composite size for a clean snapshot
+    if (r.canvas.width !== w || r.canvas.height !== h) {
+      r.canvas.width = w; r.canvas.height = h;
+    }
+    const snap = r.snapshot(key);
+    if (snap) ctx.drawImage(snap, 0, 0, w, h);
+    // also start animating live (idempotent, replaces previous loop)
+    r.play(key);
+  };
+}
+
 const SCENES = [
   {
     id: "acropolis", emoji: "🏛️", label: "Acropolis at noon",
-    draw(ctx, w, h) {
+    draw: shaderSceneDraw("acropolis"),
+    _legacy(ctx, w, h) {
       // sky
       const sky = ctx.createLinearGradient(0, 0, 0, h);
       sky.addColorStop(0, "#9fd6ff");
@@ -126,7 +467,8 @@ const SCENES = [
   },
   {
     id: "taverna", emoji: "🍽️", label: "Taverna at dusk",
-    draw(ctx, w, h) {
+    draw: shaderSceneDraw("taverna"),
+    _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
       sky.addColorStop(0, "#ff9966"); sky.addColorStop(1, "#ffd5a8");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h * 0.6);
@@ -156,7 +498,8 @@ const SCENES = [
   },
   {
     id: "kafenio", emoji: "☕", label: "Kafeneio (old men staring)",
-    draw(ctx, w, h) {
+    draw: shaderSceneDraw("kafenio"),
+    _legacy(ctx, w, h) {
       ctx.fillStyle = "#e8dcb6"; ctx.fillRect(0, 0, w, h);
       // wall stripe
       ctx.fillStyle = "#0d5eaf"; ctx.fillRect(0, h * 0.55, w, h * 0.05);
@@ -183,7 +526,8 @@ const SCENES = [
   },
   {
     id: "mykonos", emoji: "🏖️", label: "Mykonos beach club",
-    draw(ctx, w, h) {
+    draw: shaderSceneDraw("mykonos"),
+    _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h * 0.5);
       sky.addColorStop(0, "#43c1f5"); sky.addColorStop(1, "#a6e7ff");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h * 0.5);
@@ -212,6 +556,18 @@ const SCENES = [
   {
     id: "village", emoji: "🐈", label: "Village square (cats everywhere)",
     draw(ctx, w, h) {
+      // shader background...
+      shaderSceneDraw("village")(ctx, w, h);
+      // ...plus the cats overlay (canvas 2D, easier than shader sprites)
+      const rng = mulberry32(7);
+      for (let i = 0; i < 7; i++) {
+        const cx = rng() * w;
+        const cy = h * 0.72 + rng() * h * 0.22;
+        const s = 0.7 + rng() * 0.7;
+        drawCat(ctx, cx, cy, s);
+      }
+    },
+    _legacy(ctx, w, h) {
       ctx.fillStyle = "#e9d8a8"; ctx.fillRect(0, 0, w, h * 0.6);
       ctx.fillStyle = "#a37642"; ctx.fillRect(0, h * 0.6, w, h * 0.4);
       // tiled roof line
@@ -233,7 +589,8 @@ const SCENES = [
   },
   {
     id: "ferry", emoji: "⛴️", label: "On the wrong ferry",
-    draw(ctx, w, h) {
+    draw: shaderSceneDraw("ferry"),
+    _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h);
       sky.addColorStop(0, "#a4d8f0"); sky.addColorStop(0.55, "#0d5eaf"); sky.addColorStop(1, "#073d75");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
