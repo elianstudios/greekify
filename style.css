@@ -1122,6 +1122,47 @@ body.studio .hint { color: var(--st-text-dim); }
     min-height: 48px; min-width: 110px;
   }
 
+  /* --- webcam state on mobile: expand dropzone, hide reels/lever so
+        SNAP has clean space and nothing overlaps --- */
+  body.studio[data-mtab="machine"] .dropzone.webcam-on {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  body.studio[data-mtab="machine"] .input-panel:has(.dropzone.webcam-on),
+  body.studio[data-mtab="machine"].m-webcam .input-panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  /* when webcam is live, give it the whole MACHINE tab and hide reels */
+  body.studio[data-mtab="machine"] .machine:has(.dropzone.webcam-on) .slot-panel,
+  body.studio[data-mtab="machine"].m-webcam .slot-panel {
+    display: none;
+  }
+  /* SNAP button: full-width pill at the bottom of the dropzone, never absolute on mobile */
+  body.studio[data-mtab="machine"] .dropzone.webcam-on .snap {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+    min-height: 52px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    background: linear-gradient(180deg, var(--st-cyan), #086a9e);
+    color: #fff;
+    border: 1px solid #086a9e;
+    box-shadow: 0 6px 18px rgba(13,142,209,0.35);
+    z-index: 5;
+  }
+  body.studio[data-mtab="machine"] .dropzone.webcam-on #webcam {
+    border-radius: 12px;
+  }
+
   /* OUTPUT TAB — polaroid fills the screen so faders preview is huge */
   body.studio[data-mtab="output"] main.machine {
     display: flex;

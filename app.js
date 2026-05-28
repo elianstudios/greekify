@@ -1958,4 +1958,13 @@ saveBtn.addEventListener("click", () => {
 
   // ---- haptic on lever
   document.getElementById("lever")?.addEventListener("click", () => buzz([12, 30, 12]));
+
+  // ---- track webcam state on <body> for CSS targeting (no :has reliance) ----
+  const dz = document.getElementById("dropzone");
+  if (dz) {
+    const mo2 = new MutationObserver(() => {
+      document.body.classList.toggle("m-webcam", dz.classList.contains("webcam-on"));
+    });
+    mo2.observe(dz, { attributes: true, attributeFilter: ["class"] });
+  }
 })();
