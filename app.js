@@ -1830,3 +1830,146 @@ saveBtn.addEventListener("click", () => {
   // redraw cables periodically — polaroid moves when image loads
   setInterval(drawCables, 1000);
 })();
+
+// ============================================================
+// MOBILE UX — bottom action bar, bottom sheet, mood presets
+// ============================================================
+(function mobileUX() {
+  const isMobile = matchMedia("(max-width: 900px)").matches;
+  if (!isMobile) return;
+
+  const buzz = (ms) => { if (navigator.vibrate) try { navigator.vibrate(ms); } catch {} };
+
+  // ---- bottom action bar ----
+  const bar = document.getElementById("mActionbar");
+  if (bar) {
+    bar.addEventListener("click", (e) => {
+      const btn = e.target.closest(".m-act");
+      if (!btn) return;
+      const act = btn.dataset.act;
+      buzz(12);
+      if (act === "camera") {
+        document.getElementById("webcamBtn")?.click();
+        document.getElementById("dropzone")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (act === "pull") {
+        document.getElementById("lever")?.click();
+        // scroll to polaroid so user sees the result
+        setTimeout(() => document.getElementById("polaroid")?.scrollIntoView({ behavior: "smooth", block: "center" }), 600);
+      } else if (act === "save") {
+        document.getElementById("saveBtn")?.click();
+      }
+    });
+    // mirror disabled state from desktop buttons
+    function syncBarEnable() {
+      const saveBtn = document.getElementById("saveBtn");
+      const saveAct = bar.querySelector('[data-act="save"]');
+      if (saveBtn && saveAct) saveAct.disabled = saveBtn.disabled;
+    }
+    setInterval(syncBarEnable, 400);
+  }
+
+  // ---- move FX rack sliders into the mobile drawer ----
+  const desktopRack = document.getElementById("fxRack");
+  const mAdv = document.getElementById("mAdvanced");
+  if (desktopRack && mAdv) {
+    // move (not clone) so the same input listeners drive the same FX state
+    while (desktopRack.firstChild) mAdv.appendChild(desktopRack.firstChild);
+  }
+  // wire mobile reset/random to the desktop handlers' logic by clicking them
+  document.getElementById("mFxReset")?.addEventListener("click", () => {
+    document.getElementById("fxReset")?.click();
+    buzz(15);
+  });
+  document.getElementById("mFxRandom")?.addEventListener("click", () => {
+    document.getElementById("fxRandom")?.click();
+    buzz([8, 30, 8]);
+  });
+
+  // ---- mood presets ----
+  const MOODS = {
+    cinematic: { exposure: -0.05, contrast: 1.18, saturation: 1.05, warmth: 0.10, grain: 0.45, bloom: 0.40, chroma: 0.35, vignette: 0.65, intensity: 1.0 },
+    sun:       { exposure:  0.20, contrast: 1.10, saturation: 1.25, warmth: 0.45, grain: 0.20, bloom: 0.55, chroma: 0.20, vignette: 0.30, intensity: 1.1 },
+    faded:     { exposure:  0.05, contrast: 0.85, saturation: 0.60, warmth: 0.15, grain: 0.60, bloom: 0.20, chroma: 0.15, vignette: 0.40, intensity: 0.7 },
+    polaroid:  { exposure:  0.10, contrast: 1.00, saturation: 0.85, warmth: 0.25, grain: 0.70, bloom: 0.25, chroma: 0.25, vignette: 0.55, intensity: 0.9 },
+    zorba:     { exposure:  0.15, contrast: 1.35, saturation: 1.45, warmth: 0.55, grain: 0.35, bloom: 0.70, chroma: 0.55, vignette: 0.45, intensity: 1.3 },
+  };
+  function applyMood(name) {
+    const m = MOODS[name]; if (!m) return;
+    Object.assign(FX, m);
+    saveFx();
+    // sync all slider DOM (they live in the mobile drawer now)
+    document.querySelectorAll("input[data-fx]").forEach(inp => {
+      const id = inp.dataset.fx;
+      if (id in m) {
+        inp.value = m[id];
+        const out = document.querySelector(`[data-out="${id}"]`);
+        if (out) out.textContent = (+m[id]).toFixed(2);
+        const pct = ((+inp.value - +inp.min) / (+inp.max - +inp.min)) * 100;
+        inp.style.setProperty("--pct", pct + "%");
+      }
+    });
+    if (state.img && state.pick.scene) drawComposite();
+  }
+  document.querySelectorAll(".m-mood").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".m-mood").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      applyMood(chip.dataset.mood);
+      buzz(12);
+    });
+  });
+
+  // ---- bottom sheet drag ----
+  const sheet = document.getElementById("mSheet");
+  const handle = document.getElementById("mSheetHandle");
+  const hint = document.getElementById("mSheetHint");
+  const STATES = ["peek", "half", "full"];
+  function setState(s) {
+    sheet.dataset.state = s;
+    hint.textContent = s === "peek" ? "tap to expand"
+                     : s === "half" ? "swipe up for more"
+                     : "swipe down to close";
+  }
+  // tap to cycle peek -> half -> full -> peek
+  handle.addEventListener("click", () => {
+    const cur = sheet.dataset.state || "peek";
+    const idx = STATES.indexOf(cur);
+    setState(STATES[(idx + 1) % STATES.length]);
+    buzz(8);
+  });
+  // drag with touch
+  let startY = 0, startH = 0, dragging = false;
+  handle.addEventListener("touchstart", (e) => {
+    dragging = true;
+    startY = e.touches[0].clientY;
+    const rect = sheet.getBoundingClientRect();
+    startH = rect.top;
+    sheet.style.transition = "none";
+  }, { passive: true });
+  handle.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
+    const dy = e.touches[0].clientY - startY;
+    const newTop = Math.max(0, startH + dy);
+    sheet.style.transform = `translateY(${newTop - 0}px)`;
+  }, { passive: true });
+  handle.addEventListener("touchend", (e) => {
+    if (!dragging) return;
+    dragging = false;
+    sheet.style.transition = "";
+    sheet.style.transform = "";
+    // decide snap by drag distance & direction
+    const dy = (e.changedTouches[0].clientY) - startY;
+    const cur = sheet.dataset.state || "peek";
+    let next = cur;
+    if (dy < -40) next = (cur === "peek" ? "half" : "full");
+    else if (dy > 40) next = (cur === "full" ? "half" : "peek");
+    setState(next);
+    buzz(8);
+  });
+
+  // ---- haptic on lever/reels (also for desktop users on supported devices)
+  document.getElementById("lever")?.addEventListener("click", () => buzz([12, 30, 12]));
+
+  // ---- initial state: peek, soft hint that there's more here
+  setState("peek");
+})();
