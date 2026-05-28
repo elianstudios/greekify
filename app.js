@@ -1130,6 +1130,8 @@ function setImage(src) {
       drawFaceOnly();
     }
     dropzone.classList.add("has-image");
+    // visible feedback: show the uploaded photo inside the dropzone
+    dropzone.style.backgroundImage = `url("${img.src}")`;
     stopWebcam();
     hint.textContent = "Looking good. Now pull the lever. 👉";
     // kick off async face detection — refines overlay placement once ready

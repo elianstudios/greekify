@@ -158,6 +158,8 @@ html, body {
 
 /* ============ INPUT / DROPZONE ============ */
 .dropzone {
+  background-size: cover;
+  background-position: center;
   position: relative;
   aspect-ratio: 1;
   border: 3px dashed var(--blue);
@@ -207,6 +209,25 @@ html, body {
 .dropzone.webcam-on #webcam { display: block; }
 .dropzone.webcam-on .dz-inner { display: none; }
 .dropzone.webcam-on .snap { display: block !important; }
+
+/* small "tap to change" pill that floats over the uploaded photo so the
+   user can re-upload without losing visual confirmation */
+.dropzone.has-image::after {
+  content: "✓ TAP TO CHANGE";
+  position: absolute;
+  left: 50%; bottom: 10px;
+  transform: translateX(-50%);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
 
 .snap {
   position: absolute;
