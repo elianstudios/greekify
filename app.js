@@ -1461,6 +1461,173 @@ saveBtn.addEventListener("click", () => {
   a.click();
 });
 
+// ============================================================
+// KONAMI EASTER EGG — ↑↑↓↓←→←→BA triggers confetti + bouzouki
+// ============================================================
+(function konami() {
+  const SEQ = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+  let progress = 0;
+  const cvs = document.getElementById("konamiCanvas");
+  const banner = document.getElementById("konamiBanner");
+  if (!cvs) return;
+  const kctx = cvs.getContext("2d");
+  let particles = [];
+  let running = false;
+  let raf = 0;
+
+  function resize() { cvs.width = innerWidth; cvs.height = innerHeight; }
+  resize();
+  addEventListener("resize", resize);
+
+  const COLORS = ["#0d5eaf","#ffffff","#ffd54f","#ff8a00","#43c1f5","#c4292b"];
+  function burst(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp  = 6 + Math.random() * 14;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 6,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.4,
+        size: 6 + Math.random() * 8,
+        color: COLORS[(Math.random() * COLORS.length) | 0],
+        life: 1,
+        shape: Math.random() < 0.35 ? "circle" : "rect",
+      });
+    }
+  }
+
+  function tick() {
+    kctx.clearRect(0, 0, cvs.width, cvs.height);
+    for (const p of particles) {
+      p.vy += 0.45;          // gravity
+      p.vx *= 0.995;          // drag
+      p.vy *= 0.995;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life -= 0.006;
+      kctx.save();
+      kctx.translate(p.x, p.y);
+      kctx.rotate(p.rot);
+      kctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      kctx.fillStyle = p.color;
+      if (p.shape === "circle") {
+        kctx.beginPath();
+        kctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
+        kctx.fill();
+      } else {
+        kctx.fillRect(-p.size * 0.5, -p.size * 0.25, p.size, p.size * 0.5);
+      }
+      kctx.restore();
+    }
+    particles = particles.filter(p => p.life > 0 && p.y < cvs.height + 80);
+    if (particles.length === 0 && running) {
+      running = false;
+      cvs.classList.remove("live");
+      cancelAnimationFrame(raf);
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  // ---- BOUZOUKI: synthesized plucked-string arpeggio via Web Audio ----
+  let audioCtx = null;
+  function playBouzouki() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) { return; }
+    const ac = audioCtx;
+    // D minor pentatonic-ish arpeggio (sounds vaguely Greek/rebetiko)
+    const notes = [293.66, 349.23, 440.0, 523.25, 587.33, 523.25, 440.0, 349.23, 293.66, 440.0, 587.33, 880.0];
+    const t0 = ac.currentTime;
+    const master = ac.createGain();
+    master.gain.value = 0.0001;
+    master.gain.exponentialRampToValueAtTime(0.6, t0 + 0.05);
+    master.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.6);
+    // light reverb feel via short delay
+    const delay = ac.createDelay(0.5);
+    delay.delayTime.value = 0.18;
+    const fb = ac.createGain(); fb.gain.value = 0.28;
+    delay.connect(fb); fb.connect(delay);
+    const wet = ac.createGain(); wet.gain.value = 0.35;
+    delay.connect(wet); wet.connect(master);
+    master.connect(ac.destination);
+
+    notes.forEach((freq, i) => {
+      const t = t0 + i * 0.11;
+      // pluck = sawtooth + quick lowpass sweep + sharp attack
+      const osc = ac.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(2400, t);
+      lp.frequency.exponentialRampToValueAtTime(500, t + 0.4);
+      lp.Q.value = 6;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      // octave shimmer on top
+      const osc2 = ac.createOscillator();
+      osc2.type = "triangle";
+      osc2.frequency.value = freq * 2;
+      const g2 = ac.createGain();
+      g2.gain.setValueAtTime(0.0001, t);
+      g2.gain.exponentialRampToValueAtTime(0.18, t + 0.005);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+
+      osc.connect(lp); lp.connect(g); g.connect(master); g.connect(delay);
+      osc2.connect(g2); g2.connect(master);
+      osc.start(t); osc.stop(t + 0.45);
+      osc2.start(t); osc2.stop(t + 0.3);
+    });
+  }
+
+  function trigger() {
+    if (running) return;
+    running = true;
+    cvs.classList.add("live");
+    banner.classList.remove("live");
+    // restart animation by forcing reflow
+    void banner.offsetWidth;
+    banner.classList.add("live");
+    // confetti from bottom-left, bottom-right, and center
+    burst(innerWidth * 0.1,  innerHeight * 0.95, 90);
+    burst(innerWidth * 0.9,  innerHeight * 0.95, 90);
+    burst(innerWidth * 0.5,  innerHeight * 0.6,  60);
+    setTimeout(() => burst(innerWidth * 0.5, innerHeight * 0.4, 70), 350);
+    setTimeout(() => burst(innerWidth * 0.3, innerHeight * 0.7, 60), 650);
+    setTimeout(() => burst(innerWidth * 0.7, innerHeight * 0.7, 60), 650);
+    if (navigator.vibrate) navigator.vibrate([30, 40, 30, 40, 80]);
+    playBouzouki();
+    tick();
+  }
+
+  addEventListener("keydown", (e) => {
+    const want = SEQ[progress];
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (key === want) {
+      progress++;
+      if (progress === SEQ.length) { progress = 0; trigger(); }
+    } else {
+      progress = (key === SEQ[0]) ? 1 : 0;
+    }
+  });
+  // Mobile fallback: triple-tap on the logo also triggers it
+  let taps = 0, tapTimer = 0;
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".logo")) return;
+    taps++;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => { taps = 0; }, 600);
+    if (taps >= 3) { taps = 0; trigger(); }
+  });
+})();
+
 // ---------- placeholder canvas tint ----------
 (function placeholder() {
   ctx.fillStyle = "#f4ecd8";
