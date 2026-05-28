@@ -608,7 +608,7 @@ const SCENES = [
     id: "mykonos", emoji: "🏖️", label: "Mykonos beach club",
     // Real photo base + animated shader overlay (sun glints, light leak, haze)
     draw: photoSceneDraw(
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/07-17-2012_-_Mykonos_-_Little_Venice2.jpg/1280px-07-17-2012_-_Mykonos_-_Little_Venice2.jpg",
+      "https://images.unsplash.com/photo-1601581875309-fafbf2d3ed3a?w=1280&q=80",
       "mykonos_overlay"
     ),
     _legacy(ctx, w, h) {
