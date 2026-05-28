@@ -1676,7 +1676,7 @@ saveBtn.addEventListener("click", () => {
 
 // ---------- placeholder canvas tint ----------
 (function placeholder() {
-  ctx.fillStyle = "#0b0e12";
+  ctx.fillStyle = "#eef2f7";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 })();
 

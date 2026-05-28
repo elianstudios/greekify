@@ -596,19 +596,19 @@ html, body {
    All scoped under body.studio so legacy styles stay intact.
    ================================================================= */
 body.studio {
-  --st-bg: #0b0e12;
-  --st-bg-2: #11161d;
-  --st-panel: rgba(22, 28, 36, 0.72);
-  --st-panel-border: rgba(120, 180, 230, 0.18);
-  --st-line: rgba(180, 220, 255, 0.06);
-  --st-text: #d6e1ee;
-  --st-text-dim: #7d8a99;
-  --st-cyan: #43c1f5;
-  --st-cyan-dim: rgba(67, 193, 245, 0.4);
-  --st-gold: #ffd54f;
+  --st-bg: #f3f4f7;
+  --st-bg-2: #e7eaf0;
+  --st-panel: rgba(255, 255, 255, 0.78);
+  --st-panel-border: rgba(13, 94, 175, 0.16);
+  --st-line: rgba(13, 94, 175, 0.10);
+  --st-text: #1a2230;
+  --st-text-dim: #6b7686;
+  --st-cyan: #0d8ed1;
+  --st-cyan-dim: rgba(13, 142, 209, 0.35);
+  --st-gold: #c98a00;
   --st-amber: #ff8a00;
-  --st-red: #ff5a5a;
-  --st-green: #5ee08a;
+  --st-red: #c4292b;
+  --st-green: #1aa260;
   background: var(--st-bg);
   color: var(--st-text);
   font-family: "Inter", "EB Garamond", Georgia, serif;
@@ -622,37 +622,37 @@ body.studio .grain { opacity: 0.04; mix-blend-mode: overlay; }
 .studio-bg {
   position: fixed; inset: 0; z-index: -2;
   background:
-    radial-gradient(ellipse at 70% 10%, rgba(67, 193, 245, 0.12), transparent 55%),
-    radial-gradient(ellipse at 10% 90%, rgba(255, 138, 0, 0.10), transparent 50%),
-    linear-gradient(180deg, #0a0d11 0%, #11161d 100%);
+    radial-gradient(ellipse at 70% 10%, rgba(13, 142, 209, 0.10), transparent 55%),
+    radial-gradient(ellipse at 10% 90%, rgba(255, 138, 0, 0.08), transparent 50%),
+    linear-gradient(180deg, #f6f7fa 0%, #e9edf3 100%);
   pointer-events: none;
   overflow: hidden;
 }
 .studio-grid {
   position: absolute; inset: -2px;
   background-image:
-    linear-gradient(rgba(120,180,230,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120,180,230,0.05) 1px, transparent 1px);
+    linear-gradient(rgba(13,94,175,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13,94,175,0.06) 1px, transparent 1px);
   background-size: 24px 24px;
   mask-image: radial-gradient(ellipse at center, #000 30%, transparent 90%);
 }
 .studio-scan {
   position: absolute; inset: 0;
   background: repeating-linear-gradient(
-    0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px,
+    0deg, rgba(0,0,0,0.018) 0px, rgba(0,0,0,0.018) 1px,
     transparent 1px, transparent 3px);
-  opacity: 0.5;
-  mix-blend-mode: overlay;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
 }
 .studio-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.35;
+  filter: blur(90px);
+  opacity: 0.4;
   animation: glowDrift 24s ease-in-out infinite alternate;
 }
-.studio-glow-1 { width: 480px; height: 480px; left: 60%; top: -10%; background: #43c1f5; }
-.studio-glow-2 { width: 380px; height: 380px; left: 5%; bottom: -10%; background: #ff8a00; animation-delay: -8s; }
+.studio-glow-1 { width: 480px; height: 480px; left: 60%; top: -10%; background: #8ed3f4; }
+.studio-glow-2 { width: 380px; height: 380px; left: 5%; bottom: -10%; background: #ffc88a; animation-delay: -8s; }
 @keyframes glowDrift {
   0%   { transform: translate(0, 0) scale(1); }
   100% { transform: translate(40px, 30px) scale(1.15); }
@@ -676,7 +676,7 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   width: 280px;
   height: 100vh;
   padding: 14px 14px 50px;
-  background: linear-gradient(180deg, rgba(11,14,18,0.95), rgba(11,14,18,0.85));
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(245,247,250,0.86));
   border-right: 1px solid var(--st-panel-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -687,10 +687,11 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   color: var(--st-text-dim);
   display: flex; flex-direction: column; gap: 12px;
   scrollbar-width: thin;
-  scrollbar-color: #2a3340 transparent;
+  scrollbar-color: #cdd5e0 transparent;
+  box-shadow: 1px 0 0 rgba(13,94,175,0.05), 4px 0 30px rgba(13,94,175,0.05);
 }
 .rail::-webkit-scrollbar { width: 6px; }
-.rail::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 4px; }
+.rail::-webkit-scrollbar-thumb { background: #cdd5e0; border-radius: 4px; }
 
 .rail-head {
   display: flex; align-items: center; gap: 8px;
@@ -726,7 +727,7 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   border: 1px solid var(--st-panel-border);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 18px rgba(13,94,175,0.07);
   opacity: 0;
   transform: translateX(-24px);
   animation: rackIn 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
@@ -745,8 +746,8 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   letter-spacing: 0.18em;
   color: var(--st-text);
   background:
-    linear-gradient(180deg, rgba(67,193,245,0.10), rgba(67,193,245,0.0)),
-    rgba(255,255,255,0.02);
+    linear-gradient(180deg, rgba(13,142,209,0.10), rgba(13,142,209,0.0)),
+    rgba(255,255,255,0.5);
   border-bottom: 1px solid var(--st-line);
   text-transform: uppercase;
   font-weight: 700;
@@ -781,28 +782,28 @@ body.studio.cables-on .patch-layer { opacity: 1; }
 }
 .fx-slot input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: linear-gradient(90deg, var(--st-cyan) 0%, var(--st-cyan) var(--pct, 50%), rgba(255,255,255,0.08) var(--pct, 50%), rgba(255,255,255,0.08) 100%);
+  background: linear-gradient(90deg, var(--st-cyan) 0%, var(--st-cyan) var(--pct, 50%), rgba(13,94,175,0.12) var(--pct, 50%), rgba(13,94,175,0.12) 100%);
   border-radius: 2px;
 }
 .fx-slot input[type="range"]::-moz-range-track {
   height: 4px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(13,94,175,0.12);
   border-radius: 2px;
 }
 .fx-slot input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 12px; height: 12px; margin-top: -4px;
   border-radius: 50%;
-  background: #e6f4ff;
+  background: #fff;
   border: 1px solid var(--st-cyan);
-  box-shadow: 0 0 6px var(--st-cyan-dim);
+  box-shadow: 0 0 6px var(--st-cyan-dim), 0 1px 2px rgba(0,0,0,0.1);
 }
 .fx-slot input[type="range"]::-moz-range-thumb {
   width: 12px; height: 12px;
   border-radius: 50%;
-  background: #e6f4ff;
+  background: #fff;
   border: 1px solid var(--st-cyan);
-  box-shadow: 0 0 6px var(--st-cyan-dim);
+  box-shadow: 0 0 6px var(--st-cyan-dim), 0 1px 2px rgba(0,0,0,0.1);
 }
 .fx-val {
   font-family: "JetBrains Mono", ui-monospace, monospace;
@@ -816,14 +817,15 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   font-size: 10px;
   letter-spacing: 0.12em;
   padding: 6px 8px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.7);
   color: var(--st-text);
   border: 1px solid var(--st-panel-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 1px 2px rgba(13,94,175,0.06);
 }
-.mini-btn:hover { background: rgba(67,193,245,0.15); border-color: var(--st-cyan); color: #fff; }
+.mini-btn:hover { background: rgba(13,142,209,0.12); border-color: var(--st-cyan); color: #064a73; }
 
 /* ---- meters ---- */
 .meter-row {
@@ -833,7 +835,7 @@ body.studio.cables-on .patch-layer { opacity: 1; }
 }
 .meter {
   height: 6px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(13,94,175,0.10);
   border-radius: 3px;
   overflow: hidden;
   position: relative;
@@ -855,13 +857,14 @@ body.studio.cables-on .patch-layer { opacity: 1; }
   height: 28px;
   display: flex; align-items: center; gap: 16px;
   padding: 0 16px;
-  background: rgba(11, 14, 18, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid var(--st-panel-border);
   backdrop-filter: blur(10px);
   font-size: 10.5px;
   letter-spacing: 0.08em;
   color: var(--st-text-dim);
   z-index: 50;
+  box-shadow: 0 -1px 0 rgba(255,255,255,0.6) inset, 0 -4px 18px rgba(13,94,175,0.04);
 }
 .sb-item { display: flex; align-items: center; gap: 6px; }
 .sb-spacer { flex: 1; }
@@ -872,11 +875,11 @@ body.studio .masthead {
   color: var(--st-text);
 }
 body.studio .logo {
-  background: linear-gradient(180deg, #fff 0%, #ffd54f 50%, #ff8a00 100%);
+  background: linear-gradient(180deg, #0d5eaf 0%, #0d8ed1 50%, #c98a00 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 18px rgba(255,213,79,0.25));
+  filter: drop-shadow(0 2px 4px rgba(13,94,175,0.15));
 }
 body.studio .tag { color: var(--st-text-dim); }
 body.studio .meander { opacity: 0.25; }
@@ -889,8 +892,8 @@ body.studio .panel {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.05) inset,
-    0 20px 60px rgba(0,0,0,0.45);
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 14px 38px rgba(13,94,175,0.10);
   position: relative;
   z-index: 2;
 }
@@ -901,52 +904,53 @@ body.studio .panel-h {
 body.studio .panel-h::before { display: none; }
 
 body.studio .dropzone {
-  background: rgba(255,255,255,0.02);
-  border: 1px dashed rgba(67,193,245,0.35);
+  background: rgba(255,255,255,0.6);
+  border: 1px dashed rgba(13,142,209,0.45);
   color: var(--st-text-dim);
 }
 body.studio .dropzone.drag,
-body.studio .dropzone:hover { border-color: var(--st-cyan); background: rgba(67,193,245,0.06); }
+body.studio .dropzone:hover { border-color: var(--st-cyan); background: rgba(13,142,209,0.07); }
 
 body.studio .btn {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.85);
   color: var(--st-text);
   border: 1px solid var(--st-panel-border);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 1px 3px rgba(13,94,175,0.06);
 }
-body.studio .btn:hover { background: rgba(67,193,245,0.15); border-color: var(--st-cyan); }
+body.studio .btn:hover { background: rgba(13,142,209,0.10); border-color: var(--st-cyan); }
 body.studio .btn.primary {
-  background: linear-gradient(180deg, var(--st-cyan), #1f8fc7);
-  color: #001220;
-  border-color: var(--st-cyan);
+  background: linear-gradient(180deg, var(--st-cyan), #086a9e);
+  color: #fff;
+  border-color: #086a9e;
   text-shadow: none;
 }
 
 body.studio .bezel {
-  background: linear-gradient(180deg, #181f28, #0e131a);
-  border: 1px solid rgba(67,193,245,0.18);
+  background: linear-gradient(180deg, #ffffff, #eef2f7);
+  border: 1px solid rgba(13,94,175,0.14);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.5) inset,
-    0 30px 60px rgba(0,0,0,0.5);
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 20px 50px rgba(13,94,175,0.10);
 }
-body.studio .reel-window { background: #060a0f; border-color: #1a2230; }
+body.studio .reel-window { background: #f7f9fc; border-color: rgba(13,94,175,0.14); }
 body.studio .reel-label { color: var(--st-text-dim); letter-spacing: 0.2em; }
-body.studio .payline { background: var(--st-cyan); box-shadow: 0 0 18px var(--st-cyan); }
+body.studio .payline { background: var(--st-cyan); box-shadow: 0 0 14px var(--st-cyan-dim); }
 body.studio .readout {
-  background: #060a0f;
-  color: var(--st-gold);
+  background: #f7f9fc;
+  color: #b46b00;
   border-top: 1px solid var(--st-line);
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 body.studio .readout-label { color: var(--st-text-dim); }
 
-body.studio .lever-rod { background: linear-gradient(180deg, #2a3340, #11161d); }
-body.studio .lever-ball { background: radial-gradient(circle at 30% 30%, #ff8a00, #c4292b); box-shadow: 0 0 24px rgba(255,138,0,0.5); }
-body.studio .lever-text { color: var(--st-gold); }
+body.studio .lever-rod { background: linear-gradient(180deg, #c8d0db, #7a8593); }
+body.studio .lever-ball { background: radial-gradient(circle at 30% 30%, #ffb04a, #c4292b); box-shadow: 0 0 18px rgba(255,138,0,0.35), 0 2px 4px rgba(0,0,0,0.15); }
+body.studio .lever-text { color: #b46b00; }
 
 body.studio .polaroid {
-  background: #11161d;
+  background: #ffffff;
   border: 1px solid var(--st-panel-border);
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 30px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 20px 50px rgba(13,94,175,0.12);
   transform: none;
 }
 body.studio .polaroid-caption { color: var(--st-text-dim); font-style: normal; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: 0.05em; }
