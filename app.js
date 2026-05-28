@@ -792,7 +792,49 @@ const state = {
   spinning: false,
   pick: { moustache: null, scene: null, prop: null },
   webcamStream: null,
+  faceBox: null,      // {cx, cy, r} in canvas coords, or null if undetected
+  faceDetected: false,
 };
+
+// ---------- FACE DETECTION ----------
+// Uses the native FaceDetector API (Chrome Android, recent Safari behind flag).
+// Falls back to a centered guess when unavailable.
+// Returns a Promise<{cx, cy, r} | null> in CANVAS coordinates.
+async function detectFaceBoxAsync(img, canvasW, canvasH) {
+  if (!("FaceDetector" in window)) return null;
+  try {
+    const fd = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    const faces = await fd.detect(img);
+    if (!faces || !faces.length) return null;
+    // pick the largest face
+    let best = faces[0];
+    for (const f of faces) {
+      if (f.boundingBox.width * f.boundingBox.height >
+          best.boundingBox.width * best.boundingBox.height) best = f;
+    }
+    const b = best.boundingBox; // in image-pixel coords
+    // map image coords -> canvas coords using the same cover-fit as fitImage()
+    const ir = img.width / img.height;
+    const cr = canvasW / canvasH;
+    let dw, dh, dx, dy;
+    if (ir > cr) { dh = canvasH; dw = canvasH * ir; dx = (canvasW - dw) / 2; dy = 0; }
+    else        { dw = canvasW; dh = canvasW / ir; dx = 0; dy = (canvasH - dh) / 2; }
+    const sx = dw / img.width;
+    const sy = dh / img.height;
+    const fx = dx + b.x * sx;
+    const fy = dy + b.y * sy;
+    const fw = b.width * sx;
+    const fh = b.height * sy;
+    return {
+      cx: fx + fw / 2,
+      cy: fy + fh / 2,
+      r: Math.max(fw, fh) * 0.5,
+    };
+  } catch (err) {
+    console.warn("FaceDetector failed:", err);
+    return null;
+  }
+}
 
 // ---------- DOM ----------
 const dropzone = document.getElementById("dropzone");
@@ -834,21 +876,30 @@ fillReelStrip(reelEls[2], PROPS);
 // ---------- IMAGE INPUT ----------
 function setImage(src) {
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     state.img = img;
-    drawComposite(); // shows just the face, no overlays yet
+    state.faceBox = null;
+    state.faceDetected = false;
     polaroid.classList.add("ready");
     if (state.pick.moustache) {
-      // already had picks — re-draw with them
       drawComposite();
     } else {
-      // first time: show face only
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawFaceOnly();
     }
     dropzone.classList.add("has-image");
     stopWebcam();
     hint.textContent = "Looking good. Now pull the lever. 👉";
+    // kick off async face detection — refines overlay placement once ready
+    const box = await detectFaceBoxAsync(img, canvas.width, canvas.height);
+    if (box) {
+      state.faceBox = box;
+      state.faceDetected = true;
+      hint.textContent = "Face locked 🎯 — pull the lever.";
+      if (state.pick.moustache) drawComposite();
+    } else if (!("FaceDetector" in window)) {
+      // silent — browser just doesn't support it, the fallback box is fine
+    }
   };
   img.src = src;
 }
@@ -1024,11 +1075,13 @@ function composeCaption(picks) {
 
 // ---------- COMPOSITE DRAW ----------
 function detectFaceBox() {
-  // we don't actually detect — we assume centered face occupying middle ~60%
+  // Prefer the cached real detection from FaceDetector; else fall back to a
+  // centered guess. Kept synchronous so drawComposite() stays simple.
+  if (state.faceBox) return state.faceBox;
   return {
     cx: canvas.width / 2,
     cy: canvas.height * 0.46,
-    r: canvas.width * 0.22, // radius-ish
+    r: canvas.width * 0.22,
   };
 }
 
