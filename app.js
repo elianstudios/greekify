@@ -134,6 +134,41 @@ const SHADERS = {
       col = mix(col, vec3(0.0), eyes);
       gl_FragColor = vec4(col, 1.0);
     }`,
+  // Transparent atmospheric overlay for the Mykonos PHOTO base.
+  // Draws: warm light leak top-right, animated sun glints on lower half,
+  // subtle heat shimmer, and soft vignette. All in alpha — premultiplied
+  // composite over the photo.
+  mykonos_overlay: `
+    void main() {
+      vec2 uv = v_uv;
+      vec3 col = vec3(0.0);
+      float a = 0.0;
+      // warm light leak from top-right, breathing
+      float leakD = distance(uv, vec2(0.92, 0.08));
+      float leak = smoothstep(0.55, 0.0, leakD) * (0.55 + 0.15*sin(u_t*0.7));
+      col += vec3(1.0, 0.78, 0.42) * leak;
+      a   += leak * 0.55;
+      // sun glints — sparse, animated, only on lower water band ~0.45..0.78
+      float waterBand = smoothstep(0.45, 0.5, uv.y) * (1.0 - smoothstep(0.74, 0.8, uv.y));
+      float g1 = pow(max(0.0, sin(uv.x*160.0 + u_t*4.5) * sin(uv.y*55.0 - u_t*1.3)), 24.0);
+      float g2 = pow(max(0.0, sin(uv.x*90.0  - u_t*3.1) * sin(uv.y*70.0 + u_t*0.9)), 20.0);
+      float glints = (g1 + g2*0.7) * waterBand;
+      col += vec3(1.0, 0.97, 0.82) * glints * 1.4;
+      a   += glints * 0.9;
+      // heat shimmer haze low on horizon
+      float haze = fbm(vec2(uv.x*4.0 + u_t*0.15, uv.y*8.0)) * smoothstep(0.4, 0.5, uv.y) * (1.0 - smoothstep(0.55, 0.7, uv.y));
+      col += vec3(1.0, 0.95, 0.85) * haze * 0.18;
+      a   += haze * 0.18;
+      // edge vignette
+      float vig = smoothstep(0.45, 0.95, distance(uv, vec2(0.5)));
+      col = mix(col, vec3(0.05,0.04,0.08), vig*0.0); // keep color neutral
+      a   += vig * 0.35;
+      // film grain
+      float grain = (hash(uv * vec2(1280.0, 720.0) + u_t) - 0.5) * 0.07;
+      col += vec3(grain);
+      a   += abs(grain) * 0.3;
+      gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+    }`,
   mykonos: `
     void main() {
       vec2 uv = v_uv;
@@ -229,7 +264,7 @@ const SHADERS = {
 class SceneRenderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.gl = canvas.getContext("webgl", { antialias: true, preserveDrawingBuffer: true });
+    this.gl = canvas.getContext("webgl", { antialias: true, preserveDrawingBuffer: true, premultipliedAlpha: false, alpha: true });
     if (!this.gl) { this.gl = null; return; }
     this.programs = {};
     this.start = performance.now();
@@ -291,6 +326,11 @@ class SceneRenderer {
     const p = this._program(key);
     if (!p) return;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    // transparent clear so overlay shaders composite cleanly
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(p.prog);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -306,6 +346,46 @@ class SceneRenderer {
     // return THIS canvas; caller drawImages it
     return this.canvas;
   }
+}
+
+// ---------- PHOTO SCENE SUPPORT ----------
+// Cache of loaded photo images keyed by URL, plus a draw helper that composites
+// "real photo + animated atmospheric shader overlay" — the key visual upgrade.
+const _photoCache = new Map();
+function loadPhoto(url) {
+  if (_photoCache.has(url)) return _photoCache.get(url);
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.referrerPolicy = "no-referrer";
+  img.src = url;
+  _photoCache.set(url, img);
+  return img;
+}
+function drawPhotoCover(ctx, img, w, h) {
+  if (!img || !img.complete || !img.naturalWidth) {
+    ctx.fillStyle = "#0d5eaf"; ctx.fillRect(0, 0, w, h); return;
+  }
+  const ir = img.naturalWidth / img.naturalHeight;
+  const cr = w / h;
+  let dw, dh;
+  if (ir > cr) { dh = h; dw = h * ir; } else { dw = w; dh = w / ir; }
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+function photoSceneDraw(photoUrl, overlayKey) {
+  const img = loadPhoto(photoUrl);
+  // re-render once the photo loads so it appears even if the user uploaded before it arrived
+  img.addEventListener("load", () => { if (state.img) drawComposite(); }, { once: true });
+  return function (ctx, w, h) {
+    drawPhotoCover(ctx, img, w, h);
+    const r = ensureSceneRenderer();
+    if (!r || !r.gl) return;
+    if (r.canvas.width !== w || r.canvas.height !== h) {
+      r.canvas.width = w; r.canvas.height = h;
+    }
+    const snap = r.snapshot(overlayKey);
+    if (snap) ctx.drawImage(snap, 0, 0, w, h);
+    r.play(overlayKey);
+  };
 }
 
 // init once
@@ -526,7 +606,11 @@ const SCENES = [
   },
   {
     id: "mykonos", emoji: "🏖️", label: "Mykonos beach club",
-    draw: shaderSceneDraw("mykonos"),
+    // Real photo base + animated shader overlay (sun glints, light leak, haze)
+    draw: photoSceneDraw(
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/07-17-2012_-_Mykonos_-_Little_Venice2.jpg/1280px-07-17-2012_-_Mykonos_-_Little_Venice2.jpg",
+      "mykonos_overlay"
+    ),
     _legacy(ctx, w, h) {
       const sky = ctx.createLinearGradient(0, 0, 0, h * 0.5);
       sky.addColorStop(0, "#43c1f5"); sky.addColorStop(1, "#a6e7ff");
